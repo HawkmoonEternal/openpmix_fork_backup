@@ -268,6 +268,12 @@ static pmix_status_t init(void)
                        pmix_bfrops_base_pack_alloc_directive,
                        pmix_bfrops_base_unpack_alloc_directive, pmix_bfrops_base_std_copy,
                        pmix_bfrops_base_print_alloc_directive, &pmix_mca_bfrops_v21_component.types);
+                       
+    PMIX_REGISTER_TYPE("PMIX_PSETOP_DIRECTIVE", PMIX_PSETOP_DIRECTIVE,
+                       pmix_bfrops_base_pack_psetop_directive,
+                       pmix_bfrops_base_unpack_psetop_directive, pmix_bfrops_base_std_copy,
+                       pmix_bfrops_base_print_psetop_directive, &mca_bfrops_v21_component.types);
+
 
     /**** DEPRECATED ****/
     PMIX_REGISTER_TYPE("PMIX_INFO_ARRAY", PMIX_INFO_ARRAY, pmix21_bfrop_pack_array,

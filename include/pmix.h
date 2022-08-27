@@ -215,6 +215,9 @@ PMIX_EXPORT pmix_status_t PMIx_Get_nb(const pmix_proc_t *proc, const char key[],
                                       const pmix_info_t info[], size_t ninfo,
                                       pmix_value_cbfunc_t cbfunc, void *cbdata);
 
+//FIXME: Use PMIx_Get Refresh Cash instead
+PMIX_EXPORT pmix_status_t PMIx_Get_job_data(void);
+
 
 /* Publish the data in the info array for lookup. By default,
  * the data will be published into the PMIX_SESSION range and
@@ -481,6 +484,24 @@ PMIX_EXPORT pmix_status_t PMIx_Allocation_request(pmix_alloc_directive_t directi
                                                   pmix_info_t **results, size_t *nresults);
 
 PMIX_EXPORT pmix_status_t PMIx_Allocation_request_nb(pmix_alloc_directive_t directive,
+                                                     pmix_info_t *info, size_t ninfo,
+                                                     pmix_info_cbfunc_t cbfunc, void *cbdata);
+
+
+/* Request a pset operation from the host resource manager.
+ * Several operations are envisioned, including:
+ *
+ * - UNION
+ *
+ * - DIFFERENCE
+ *
+ * - INTERSECTION
+ */
+PMIX_EXPORT pmix_status_t PMIx_Pset_Op_request(pmix_psetop_directive_t directive,
+                                                  pmix_info_t *info, size_t ninfo,
+                                                  pmix_info_t **results, size_t *nresults);
+
+PMIX_EXPORT pmix_status_t PMIx_Pset_Op_request_nb(pmix_psetop_directive_t directive,
                                                      pmix_info_t *info, size_t ninfo,
                                                      pmix_info_cbfunc_t cbfunc, void *cbdata);
 
@@ -1131,6 +1152,7 @@ PMIX_EXPORT const char* PMIx_Persistence_string(pmix_persistence_t persist);
 PMIX_EXPORT const char* PMIx_Data_range_string(pmix_data_range_t range);
 PMIX_EXPORT const char* PMIx_Data_type_string(pmix_data_type_t type);
 PMIX_EXPORT const char* PMIx_Alloc_directive_string(pmix_alloc_directive_t directive);
+PMIX_EXPORT const char* PMIx_Psetop_directive_string(pmix_psetop_directive_t directive);
 PMIX_EXPORT const char* PMIx_IOF_channel_string(pmix_iof_channel_t channel);
 PMIX_EXPORT const char* PMIx_Job_state_string(pmix_job_state_t state);
 PMIX_EXPORT const char* PMIx_Get_attribute_string(const char *attribute);

@@ -303,6 +303,10 @@ PMIX_EXPORT pmix_status_t pmix_server_log(pmix_peer_t *peer, pmix_buffer_t *buf,
 PMIX_EXPORT pmix_status_t pmix_server_alloc(pmix_peer_t *peer, pmix_buffer_t *buf,
                                             pmix_info_cbfunc_t cbfunc, void *cbdata);
 
+PMIX_EXPORT pmix_status_t pmix_server_psetop(pmix_peer_t *peer, pmix_buffer_t *buf,
+                                            pmix_psetop_cbfunc_t cbfunc, void *cbdata);
+
+
 PMIX_EXPORT pmix_status_t pmix_server_job_ctrl(pmix_peer_t *peer, pmix_buffer_t *buf,
                                                pmix_info_cbfunc_t cbfunc, void *cbdata);
 

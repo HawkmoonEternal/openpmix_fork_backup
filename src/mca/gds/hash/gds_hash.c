@@ -610,7 +610,13 @@ static pmix_status_t register_info(pmix_peer_t *peer,
     /* get the proc-level data for each proc in the job */
     pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
                         "FETCHING PROC INFO FOR NSPACE %s NPROCS %u", ns->nspace, ns->nprocs);
-    for (rank = 0; rank < ns->nprocs; rank++) {
+    
+    pmix_rank_info_t *rank_info;
+    
+    /* Note: For dynamicity we need to account for holes in the nspace */ 
+    //for (rank = 0; rank < ns->nprocs; rank++) {
+    PMIX_LIST_FOREACH(rank_info, &ns->ranks, pmix_rank_info_t){
+        rank = rank_info->pname.rank;
         pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
                             "FETCHING PROC INFO FOR RANK %s", PMIX_RANK_PRINT(rank));
         PMIX_CONSTRUCT(&values, pmix_list_t);

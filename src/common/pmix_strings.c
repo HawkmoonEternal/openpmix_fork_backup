@@ -201,6 +201,21 @@ PMIX_EXPORT const char *PMIx_Alloc_directive_string(pmix_alloc_directive_t direc
     }
 }
 
+PMIX_EXPORT const char *PMIx_Psetop_directive_string(pmix_psetop_directive_t directive)
+{
+    switch (directive) {
+    case PMIX_PSETOP_UNION:
+        return "UNION";
+    case PMIX_PSETOP_DIFFERENCE:
+        return "DIFFERENCE";
+    case PMIX_PSETOP_INTERSECTION:
+        return "INTERSECTION";
+    default:
+        return "UNSPECIFIED";
+    }
+}
+
+
 PMIX_EXPORT const char *pmix_command_string(pmix_cmd_t cmd)
 {
     switch (cmd) {

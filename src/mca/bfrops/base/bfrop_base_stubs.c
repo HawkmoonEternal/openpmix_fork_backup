@@ -122,6 +122,8 @@ static const char *basic_type_string(pmix_data_type_t type)
         return "PMIX_COMPRESSED_STRING";
     case PMIX_ALLOC_DIRECTIVE:
         return "PMIX_ALLOC_DIRECTIVE";
+    case PMIX_PSETOP_DIRECTIVE:
+        return "PMIX_PSETOP_DIRECTIVE";
     case PMIX_IOF_CHANNEL:
         return "PMIX_IOF_CHANNEL";
     case PMIX_ENVAR:

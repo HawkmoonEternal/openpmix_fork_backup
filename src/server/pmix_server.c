@@ -1101,7 +1101,7 @@ static void _register_nspace(int sd, short args, void *cbdata)
         nptr->nspace = strdup(cd->proc.nspace);
         pmix_list_append(&pmix_globals.nspaces, &nptr->super);
     }
-    if (0 > cd->nlocalprocs) {
+    if (0 > cd->nlocalprocs && INT_MIN != cd->nlocalprocs) {
         gds = nptr->compat.gds;
         if (NULL != gds) {
             /* this is just an update */
@@ -1129,7 +1129,28 @@ static void _register_nspace(int sd, short args, void *cbdata)
         rc = PMIX_SUCCESS;
         goto release;
     }
-    nptr->nlocalprocs = cd->nlocalprocs;
+    //nptr->nlocalprocs = cd->nlocalprocs;
+
+    /* FIXME: Why is this working?
+     *  - if(!is_update) should be if(is_update), but it works
+     */
+
+    is_update = (cd->nlocalprocs == INT_MIN || nptr->nlocalprocs != cd->nlocalprocs);
+
+    if(cd->nlocalprocs != INT_MIN){
+        nptr->nlocalprocs = cd->nlocalprocs;
+    }else{
+        cd->nlocalprocs=nptr->nlocalprocs;
+    }
+
+    if(!is_update){
+        //printf("updating job data\n");
+        PMIX_GDS_CACHE_JOB_INFO(rc, pmix_globals.mypeer, nptr, cd->info, cd->ninfo);
+        if (PMIX_SUCCESS != rc) {
+            printf("Error updating job data\n");
+        }
+        goto release;
+    }
 
     /* see if we already have everyone */
     if (nptr->nlocalprocs == pmix_list_get_size(&nptr->ranks)) {
@@ -3864,6 +3885,108 @@ complete:
     }
 }
 
+MIX_EXPORT void psetop_cbfunc(pmix_status_t status, pmix_psetop_directive_t directive, pmix_info_t *info, size_t ninfo, void *cbdata,
+                         pmix_release_cbfunc_t release_fn, void *release_cbdata)
+{
+
+    pmix_data_array_t *procs_darray = NULL;
+    pmix_proc_t *pset_procs;
+    char *pset_name = NULL;
+    size_t pset_size, ninfo_down = 0, n, sz;
+    pmix_info_t *reply_info;
+    pmix_status_t rc;
+    pmix_server_caddy_t *cd;
+    pmix_buffer_t *reply;
+
+
+    pmix_query_caddy_t *qcd = (pmix_query_caddy_t *) cbdata;
+    cd = (pmix_server_caddy_t *) qcd->cbdata;
+
+    pmix_output_verbose(2, pmix_server_globals.base_output, "pmix:psetop callback with status %d",
+                        status);
+    reply = PMIX_NEW(pmix_buffer_t);
+    if (NULL == reply) {
+        PMIX_ERROR_LOG(PMIX_ERR_NOMEM);
+        PMIX_RELEASE(cd);
+        return;
+    }
+
+    PMIX_BFROPS_PACK(rc, cd->peer, reply, &status, 1, PMIX_STATUS);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        goto complete;
+    }
+
+    if(PMIX_PSETOP_NULL == directive){
+        PMIX_ERROR_LOG(PMIX_ERR_SERVER_FAILED_REQUEST);
+        goto complete;
+    }
+
+
+
+    for(n=0; n < ninfo; n++){
+        if(PMIX_CHECK_KEY(&info[n], PMIX_PSETOP_PRESULT)){
+            PMIX_VALUE_UNLOAD(rc, &info[n].value, (void**)&pset_name, &sz);
+        }else if(PMIX_CHECK_KEY(&info[n], PMIX_PSETOP_PSET_SIZE)){
+            pset_size = info[n].value.data.size;
+        }else if(PMIX_CHECK_KEY(&info[n], PMIX_QUERY_PSET_MEMBERSHIP)){
+            procs_darray = info[n].value.data.darray;
+        }
+    }
+   
+
+    pmix_setup_caddy_t _cd;
+
+
+    PMIX_CONSTRUCT(&_cd, pmix_setup_caddy_t);
+    _cd.nspace = strdup(pset_name);
+    _cd.procs = (pmix_proc_t *)  procs_darray->array;
+    _cd.nprocs = pset_size;
+    _cd.opcbfunc = opcbfunc;
+    _cd.cbdata = &_cd.lock;
+    psetdef(0,0, &_cd);
+    rc = _cd.lock.status;
+    _cd.procs = NULL;
+    _cd.nprocs = 0;
+    PMIX_DESTRUCT(&_cd);
+complete:
+    // send reply
+    PMIX_BFROPS_PACK(rc, cd->peer, reply, &ninfo, 1, PMIX_SIZE);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        goto complete;
+    }
+    PMIX_INFO_CREATE(reply_info, 2);
+    PMIX_INFO_LOAD(&reply_info[0], PMIX_PSETOP_PRESULT, pset_name, PMIX_STRING);
+    PMIX_INFO_LOAD(&reply_info[1], PMIX_PSETOP_PSET_SIZE, &pset_size, PMIX_SIZE);
+
+    PMIX_BFROPS_PACK(rc, cd->peer, reply, reply_info, 2, PMIX_INFO);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        goto complete;
+    }
+
+    PMIX_SERVER_QUEUE_REPLY(rc, cd->peer, cd->hdr.tag, reply);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_RELEASE(reply);
+    }
+
+    PMIX_INFO_FREE(reply_info, 2);
+    // cleanup
+    if (NULL != qcd->queries) {
+        PMIX_QUERY_FREE(qcd->queries, qcd->nqueries);
+    }
+    if (NULL != qcd->info) {
+        PMIX_INFO_FREE(qcd->info, qcd->ninfo);
+    }
+    PMIX_RELEASE(qcd);
+    PMIX_RELEASE(cd);
+    
+    if (NULL != release_fn) {
+        release_fn(release_cbdata);
+    }
+}
+
 static void query_cbfunc(pmix_status_t status, pmix_info_t *info, size_t ninfo, void *cbdata,
                          pmix_release_cbfunc_t release_fn, void *release_cbdata)
 {
@@ -4657,6 +4780,15 @@ static pmix_status_t server_switchyard(pmix_peer_t *peer, uint32_t tag, pmix_buf
         }
         return rc;
     }
+
+    if (PMIX_PSETOP_CMD == cmd) {
+        PMIX_GDS_CADDY(cd, peer, tag);
+        if (PMIX_SUCCESS != (rc = pmix_server_psetop(peer, buf, psetop_cbfunc, cd))) {
+            PMIX_RELEASE(cd);
+        }
+        return rc;
+    }
+
 
     if (PMIX_JOB_CONTROL_CMD == cmd) {
         PMIX_GDS_CADDY(cd, peer, tag);

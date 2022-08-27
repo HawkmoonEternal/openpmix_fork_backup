@@ -250,6 +250,8 @@ static pmix_attr_init_t client_fns[] = {
      .attrs = (char *[]){"PMIX_LOG_GENERATE_TIMESTAMP", "PMIX_LOG_SOURCE", NULL}},
     {.function = "PMIx_Allocation_request", .attrs = (char *[]){"NONE", NULL}},
     {.function = "PMIx_Allocation_request_nb", .attrs = (char *[]){"NONE", NULL}},
+    {.function = "PMIx_Pset_Op_request", .attrs = (char *[]){"NONE", NULL}},
+    {.function = "PMIx_Pset_Op_request_nb", .attrs = (char *[]){"NONE", NULL}},
     {.function = "PMIx_Job_control", .attrs = (char *[]){"NONE", NULL}},
     {.function = "PMIx_Job_control_nb", .attrs = (char *[]){"NONE", NULL}},
     {.function = "PMIx_Process_monitor", .attrs = (char *[]){"PMIX_SEND_HEARTBEAT", NULL}},

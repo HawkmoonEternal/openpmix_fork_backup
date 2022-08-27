@@ -1358,6 +1358,21 @@ pmix_status_t pmix_bfrops_base_unpack_alloc_directive(pmix_pointer_array_t *regt
     return ret;
 }
 
+pmix_status_t pmix_bfrops_base_unpack_psetop_directive(pmix_pointer_array_t *regtypes,
+                                                      pmix_buffer_t *buffer, void *dest,
+                                                      int32_t *num_vals, pmix_data_type_t type)
+{
+    pmix_status_t ret;
+
+    if (PMIX_PSETOP_DIRECTIVE != type) {
+        return PMIX_ERR_BAD_PARAM;
+    }
+
+    PMIX_BFROPS_UNPACK_TYPE(ret, buffer, dest, num_vals, PMIX_UINT8, regtypes);
+    return ret;
+}
+
+
 pmix_status_t pmix_bfrops_base_unpack_iof_channel(pmix_pointer_array_t *regtypes,
                                                   pmix_buffer_t *buffer, void *dest,
                                                   int32_t *num_vals, pmix_data_type_t type)

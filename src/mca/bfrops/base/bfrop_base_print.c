@@ -746,6 +746,9 @@ static int print_val(char **output, pmix_value_t *src)
         case PMIX_ALLOC_DIRECTIVE:
             rc = pmix_bfrops_base_print_alloc_directive(&tp, NULL, &src->data.adir, PMIX_ALLOC_DIRECTIVE);
             break;
+        case PMIX_PSETOP_DIRECTIVE:
+            rc = pmix_bfrops_base_print_psetop_directive(output, prefx, &src->data.pdir, PMIX_PSETOP_DIRECTIVE);
+            break;
         case PMIX_ENVAR:
             rc = pmix_bfrops_base_print_envar(&tp, NULL, &src->data.envar, PMIX_ENVAR);
             break;
@@ -1352,6 +1355,9 @@ pmix_status_t pmix_bfrops_base_print_darray(char **output, char *prefix,
                 adptr = (pmix_alloc_directive_t*)src->array;
                 rc = pmix_bfrops_base_print_alloc_directive(&tp, prefix, &adptr[n], PMIX_ALLOC_DIRECTIVE);
                 break;
+            case PMIX_PSETOP_DIRECTIVE:
+                rc = pmix_bfrops_base_print_psetop_directive(&tp, prefx, &src->data.pdir, PMIX_PSETOP_DIRECTIVE);
+                break;
             case PMIX_ENVAR:
                 evptr = (pmix_envar_t*)src->array;
                 rc = pmix_bfrops_base_print_envar(&tp, prefix, &evptr[n], PMIX_ENVAR);
@@ -1552,6 +1558,39 @@ pmix_status_t pmix_bfrops_base_print_alloc_directive(char **output, char *prefix
         return PMIX_SUCCESS;
     }
 }
+
+pmix_status_t pmix_bfrops_base_print_psetop_directive(char **output, char *prefix,
+                                                     pmix_psetop_directive_t *src,
+                                                     pmix_data_type_t type)
+{
+    char *prefx;
+    int ret;
+
+    if (PMIX_PSETOP_DIRECTIVE != type) {
+        return PMIX_ERR_BAD_PARAM;
+    }
+    /* deal with NULL prefix */
+    if (NULL == prefix) {
+        if (0 > asprintf(&prefx, " ")) {
+            return PMIX_ERR_NOMEM;
+        }
+    } else {
+        prefx = prefix;
+    }
+
+    ret = asprintf(output, "%sData type: PMIX_PSETOP_DIRECTIVE\tValue: %s", prefx,
+                   PMIx_Psetop_directive_string(*src));
+    if (prefx != prefix) {
+        free(prefx);
+    }
+
+    if (0 > ret) {
+        return PMIX_ERR_OUT_OF_RESOURCE;
+    } else {
+        return PMIX_SUCCESS;
+    }
+}
+
 
 pmix_status_t pmix_bfrops_base_print_iof_channel(char **output, char *prefix,
                                                  pmix_iof_channel_t *src, pmix_data_type_t type)

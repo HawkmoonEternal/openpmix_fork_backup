@@ -270,6 +270,9 @@ void pmix_bfrops_base_value_load(pmix_value_t *v,
         case PMIX_ALLOC_DIRECTIVE:
             memcpy(&(v->data.adir), data, sizeof(pmix_alloc_directive_t));
             break;
+        case PMIX_PSETOP_DIRECTIVE:
+            memcpy(&(v->data.pdir), data, sizeof(pmix_psetop_directive_t));
+            break;
         case PMIX_ENVAR:
             envar = (pmix_envar_t *) data;
             if (NULL != envar->envar) {
@@ -1117,6 +1120,9 @@ pmix_status_t pmix_bfrops_base_value_xfer(pmix_value_t *p, const pmix_value_t *s
         break;
     case PMIX_ALLOC_DIRECTIVE:
         memcpy(&p->data.adir, &src->data.adir, sizeof(pmix_alloc_directive_t));
+        break;
+    case PMIX_PSETOP_DIRECTIVE:
+        memcpy(&p->data.pdir, &src->data.pdir, sizeof(pmix_psetop_directive_t));
         break;
     case PMIX_ENVAR:
         PMIX_ENVAR_CONSTRUCT(&p->data.envar);

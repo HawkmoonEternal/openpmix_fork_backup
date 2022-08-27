@@ -819,6 +819,27 @@ typedef uint32_t pmix_rank_t;
 #define PMIX_ALLOC_FABRIC_SEC_KEY           "pmix.alloc.nsec"       // (pmix_byte_object_t) fabric security key
 #define PMIX_ALLOC_QUEUE                    "pmix.alloc.queue"      // (char*) name of queue being referenced
 
+/* attributes related to resource changes */
+//#define PMIX_RES_CHANGE_PSET                "pmix.reschange.pset"   // (char*) name of the (delta-)pset related to resource change
+//#define PMIX_RES_CHANGE_TYPE                "pmix.reschange.type"   // (pmix_res_change_type_t) type of the resource change
+
+
+/* pset operation attributes */
+#define PMIX_PSETOP_P1                      "pmix.psetop.p1"        // (char*) name of the first pset of the operation
+#define PMIX_PSETOP_P2                      "pmix.psetop.p2"        // (char*) name of the second pset of the operation
+#define PMIX_PSETOP_PREF_NAME               "pmix.psetop.prefname"  // (char*) client's preferred name of the result pset
+
+#define PMIX_PSETOP_PSET_SIZE               "pmix.psetop.psetsize"  // (size_t) size of the result pset of the operation
+#define PMIX_PSETOP_PRESULT                 "pmix.psetop.presult"   // (char*) name of the resulting pset assigned by RM
+
+/* resource change attributes */
+#define PMIX_PSETOP_P1                      "pmix.psetop.p1"        // (char*) name of the first pset of the operation
+#define PMIX_PSETOP_P2                      "pmix.psetop.p2"        // (char*) name of the second pset of the operation
+#define PMIX_PSETOP_PREF_NAME               "pmix.psetop.prefname"  // (char*) client's preferred name of the result pset
+
+#define PMIX_PSETOP_PRESULT                 "pmix.psetop.presult"   // (char*) name of the resulting pset assigned by RM
+
+
 
 /* job control attributes */
 #define PMIX_JOB_CTRL_ID                    "pmix.jctrl.id"         // (char*) provide a string identifier for this request
@@ -1250,6 +1271,11 @@ typedef int pmix_status_t;
 #define PMIX_PROCESS_SET_DEFINE                     -55
 #define PMIX_PROCESS_SET_DELETE                     -56
 
+/* Resource change */
+#define PMIX_RC_FINALIZED                           -65
+#define PMIX_RC_DEFINE                              -66
+
+
 /* Debugger ops */
 #define PMIX_DEBUGGER_RELEASE                       -3      // replaced deprecated PMIX_ERR_DEBUGGER_RELEASE
 #define PMIX_READY_FOR_DEBUG                        -58     // accompanied by PMIX_BREAKPOINT indicating where proc is waiting
@@ -1435,6 +1461,8 @@ typedef uint16_t pmix_data_type_t;
 #define PMIX_STOR_ACCESS                67
 #define PMIX_STOR_PERSIST               68
 #define PMIX_STOR_ACCESS_TYPE           69
+
+#define PMIX_PSETOP_DIRECTIVE          100
 /********************/
 
 /* define a boundary for implementers so they can add their own data types */
@@ -1508,6 +1536,25 @@ typedef uint8_t pmix_alloc_directive_t;
 /* define a value boundary beyond which implementers are free
  * to define their own directive values */
 #define PMIX_ALLOC_EXTERNAL     128
+
+/* define a set of directives for pset operation requests */
+typedef uint8_t pmix_psetop_directive_t;
+#define PMIX_PSETOP_NULL           0   // Invalid pset operation
+#define PMIX_PSETOP_UNION           1  // The union of two psets is requested
+#define PMIX_PSETOP_DIFFERENCE      2  // The difference of two psets is requested
+#define PMIX_PSETOP_INTERSECTION    3  // The intersection of two psets is requested
+/* define a value boundary beyond which implementers are free
+ * to define their own directive values */
+#define PMIX_PSETOP_EXTERNAL     128
+
+typedef uint8_t pmix_res_change_type_t;
+#define PMIX_RES_CHANGE_NULL        0  // No change
+#define PMIX_RES_CHANGE_ADD         1  // Resources are added
+#define PMIX_RES_CHANGE_SUB         2  // Resources are removed
+/* define a value boundary beyond which implementers are free
+ * to define their own values */
+#define PMIX_RES_CHANGE_EXTERNAL     128
+
 
 
 /* define a set of bit-mask flags for specifying IO
@@ -3294,6 +3341,8 @@ typedef struct pmix_value {
         pmix_data_array_t *darray;
         void *ptr;
         pmix_alloc_directive_t adir;
+        pmix_psetop_directive_t pdir;
+        //pmix_res_change_type_t rctype;
         pmix_envar_t envar;
         pmix_coord_t *coord;
         pmix_link_state_t linkstate;
@@ -3902,6 +3951,17 @@ typedef void (*pmix_info_cbfunc_t)(pmix_status_t status,
                                    pmix_release_cbfunc_t release_fn,
                                    void *release_cbdata);
 
+/* define a callback function for calls to PMIx_Psetop. The status
+ * indicates if requested operation was accepted - an array of
+ * pmix_info_t will contain the key/value pairs. */
+typedef void (*pmix_psetop_cbfunc_t)(pmix_status_t status,
+                                   pmix_psetop_directive_t directive,
+                                   pmix_info_t *info, size_t ninfo,
+                                   void *cbdata,
+                                   pmix_release_cbfunc_t release_fn,
+                                   void *release_cbdata);
+
+
 /* Define a callback function to return a requested security credential.
  * Returned values include:
  *
@@ -4023,6 +4083,7 @@ typedef void (*pmix_device_dist_cbfunc_t)(pmix_status_t status,
                 PMIX_BYTE_OBJECT_CREATE((m)->array, (n));           \
                                                                     \
             } else if (PMIX_ALLOC_DIRECTIVE == (t) ||               \
+                       PMIX_PSETOP_DIRECTIVE == (t) ||              \
                        PMIX_PROC_STATE == (t) ||                    \
                        PMIX_PERSIST == (t) ||                       \
                        PMIX_SCOPE == (t) ||                         \

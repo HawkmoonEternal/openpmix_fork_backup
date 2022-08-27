@@ -180,6 +180,11 @@ pmix_status_t pmix20_bfrop_std_copy(void **dest, void *src, pmix_data_type_t typ
         datasize = sizeof(pmix_alloc_directive_t);
         break;
 
+    case PMIX_PSETOP_DIRECTIVE:
+        datasize = sizeof(pmix_psetop_directive_t);
+        break;
+
+
     default:
         return PMIX_ERR_UNKNOWN_DATA_TYPE;
     }

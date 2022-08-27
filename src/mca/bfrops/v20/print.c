@@ -1646,6 +1646,31 @@ pmix_status_t pmix20_bfrop_print_alloc_directive(char **output, char *prefix,
     return PMIX_SUCCESS;
 }
 
+pmix_status_t pmix20_bfrop_print_psetop_directive(char **output, char *prefix,
+                                                 pmix_psetop_directive_t *src, pmix_data_type_t type)
+{
+    char *prefx;
+
+    /* deal with NULL prefix */
+    if (NULL == prefix) {
+        if (0 > asprintf(&prefx, " ")) {
+            return PMIX_ERR_NOMEM;
+        }
+    } else {
+        prefx = prefix;
+    }
+
+    if (0 > asprintf(output, "%sData type: PMIX_PSETOP_DIRECTIVE\tValue: %s", prefx,
+                     PMIx_Psetop_directive_string(*src))) {
+        return PMIX_ERR_NOMEM;
+    }
+    if (prefx != prefix) {
+        free(prefx);
+    }
+
+    return PMIX_SUCCESS;
+}
+
 /**** DEPRECATED ****/
 pmix_status_t pmix20_bfrop_print_array(char **output, char *prefix, pmix_info_array_t *src,
                                        pmix_data_type_t type)

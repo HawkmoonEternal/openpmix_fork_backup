@@ -197,6 +197,10 @@ pmix_status_t pmix_bfrops_base_std_copy(void **dest, void *src, pmix_data_type_t
         datasize = sizeof(pmix_alloc_directive_t);
         break;
 
+    case PMIX_PSETOP_DIRECTIVE:
+        datasize = sizeof(pmix_psetop_directive_t);
+        break;
+
     case PMIX_JOB_STATE:
         datasize = sizeof(pmix_job_state_t);
         break;

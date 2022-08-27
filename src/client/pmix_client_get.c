@@ -421,6 +421,87 @@ PMIX_EXPORT pmix_status_t PMIx_Get_nb(const pmix_proc_t *proc, const char key[],
     return rc;
 }
 
+static void job_data(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer_t *buf, void *cbdata);
+
+PMIX_EXPORT pmix_status_t PMIx_Get_job_data(){
+        pmix_cb_t cb;
+        pmix_status_t rc;
+        pmix_buffer_t *req;
+        pmix_cmd_t cmd = PMIX_REQ_CMD;
+
+        PMIX_ACQUIRE_THREAD(&pmix_global_lock);
+        if (pmix_globals.init_cntr <= 0) {
+            PMIX_RELEASE_THREAD(&pmix_global_lock);
+            return PMIX_ERR_INIT;
+        }
+
+            /* send a request for our job info - we do this as a non-blocking
+         * transaction because some systems cannot handle very large
+         * blocking operations and error out if we try them. */
+        req = PMIX_NEW(pmix_buffer_t);
+        PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, req, &cmd, 1, PMIX_COMMAND);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_ERROR_LOG(rc);
+            PMIX_RELEASE(req);
+            
+            PMIX_RELEASE_THREAD(&pmix_global_lock);
+            return rc;
+        }
+        /* send to the server */
+        PMIX_CONSTRUCT(&cb, pmix_cb_t);
+        PMIX_PTL_SEND_RECV(rc, pmix_client_globals.myserver, req, job_data, (void *) &cb);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_RELEASE_THREAD(&pmix_global_lock);
+            return rc;
+        }
+        /* wait for the data to return */
+        PMIX_WAIT_THREAD(&cb.lock);
+        rc = cb.status;
+        PMIX_DESTRUCT(&cb);
+        PMIX_RELEASE_THREAD(&pmix_global_lock);
+        
+        //printf("returning from get job data\n");
+        return PMIX_SUCCESS;
+}
+
+static void job_data(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer_t *buf, void *cbdata)
+{
+    pmix_status_t rc;
+    char *nspace;
+    int32_t cnt = 1;
+    pmix_cb_t *cb = (pmix_cb_t *) cbdata;
+    /* a zero-byte buffer indicates that this recv is being
+     * completed due to a lost connection */
+    if (PMIX_BUFFER_IS_EMPTY(buf)) {
+        cb->status = PMIX_ERROR;
+        PMIX_POST_OBJECT(cb);
+        PMIX_WAKEUP_THREAD(&cb->lock);
+        return;
+    }
+
+    /* unpack the nspace - should be same as our own */
+    PMIX_BFROPS_UNPACK(rc, pmix_client_globals.myserver, buf, &nspace, &cnt, PMIX_STRING);
+    if (PMIX_SUCCESS != rc || !PMIX_CHECK_NSPACE(nspace, pmix_globals.myid.nspace)) {
+        if (PMIX_SUCCESS == rc) {
+            rc = PMIX_ERR_INVALID_VAL;
+        }
+        PMIX_ERROR_LOG(rc);
+        cb->status = PMIX_ERROR;
+        PMIX_POST_OBJECT(cb);
+        PMIX_WAKEUP_THREAD(&cb->lock);
+        return;
+    }
+
+    /* decode it */
+    PMIX_GDS_STORE_JOB_INFO(cb->status, pmix_client_globals.myserver, nspace, buf);
+
+    free(nspace);
+    cb->status = PMIX_SUCCESS;
+    PMIX_POST_OBJECT(cb);
+    PMIX_WAKEUP_THREAD(&cb->lock);
+}
+
+
 static void _value_cbfunc(pmix_status_t status, pmix_value_t *kv, void *cbdata)
 {
     pmix_cb_t *cb;

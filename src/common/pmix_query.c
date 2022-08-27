@@ -859,6 +859,143 @@ PMIX_EXPORT pmix_status_t PMIx_Allocation_request_nb(pmix_alloc_directive_t dire
     return rc;
 }
 
+PMIX_EXPORT pmix_status_t PMIx_Pset_Op_request(pmix_psetop_directive_t directive,
+                                                  pmix_info_t *info, size_t ninfo,
+                                                  pmix_info_t **results, size_t *nresults)
+{
+    pmix_cb_t cb;
+    pmix_status_t rc;
+
+    PMIX_ACQUIRE_THREAD(&pmix_global_lock);
+
+    if (pmix_globals.init_cntr <= 0) {
+        PMIX_RELEASE_THREAD(&pmix_global_lock);
+        return PMIX_ERR_INIT;
+    }
+    PMIX_RELEASE_THREAD(&pmix_global_lock);
+
+    pmix_output_verbose(2, pmix_globals.debug_output, "%s pmix:psetop",
+                        PMIX_NAME_PRINT(&pmix_globals.myid));
+
+    /* set the default response */
+    *results = NULL;
+    *nresults = 0;
+
+    /* create a callback object as we need to pass it to the
+     * recv routine so we know which callback to use when
+     * the return message is recvd */
+    PMIX_CONSTRUCT(&cb, pmix_cb_t);
+    if (PMIX_SUCCESS != (rc = PMIx_Pset_Op_request_nb(directive, info, ninfo, acb, &cb))) {
+        PMIX_DESTRUCT(&cb);
+        return rc;
+    }
+
+    /* wait for the operation to complete */
+    PMIX_WAIT_THREAD(&cb.lock);
+    rc = cb.status;
+    if (NULL != cb.info) {
+        *results = cb.info;
+        *nresults = cb.ninfo;
+        /* protect the data */
+        cb.info = NULL;
+        cb.ninfo = 0;
+    }
+    PMIX_DESTRUCT(&cb);
+
+    pmix_output_verbose(2, pmix_globals.debug_output, "pmix:psetop completed");
+
+    return rc;
+}
+
+PMIX_EXPORT pmix_status_t PMIx_Pset_Op_request_nb(pmix_psetop_directive_t directive,
+                                                     pmix_info_t *info, size_t ninfo,
+                                                     pmix_info_cbfunc_t cbfunc, void *cbdata)
+{
+    pmix_buffer_t *msg;
+    pmix_cmd_t cmd = PMIX_PSETOP_CMD;
+    pmix_status_t rc;
+    pmix_query_caddy_t *cb;
+
+    pmix_output_verbose(2, pmix_globals.debug_output, "pmix:psetop called");
+
+    PMIX_ACQUIRE_THREAD(&pmix_global_lock);
+
+    if (pmix_globals.init_cntr <= 0) {
+        PMIX_RELEASE_THREAD(&pmix_global_lock);
+        return PMIX_ERR_INIT;
+    }
+
+    /* if we are the server, then we just issue the request and
+     * return the response */
+    //if (PMIX_PEER_IS_SERVER(pmix_globals.mypeer) && !PMIX_PEER_IS_LAUNCHER(pmix_globals.mypeer) && 0) {
+    //    PMIX_RELEASE_THREAD(&pmix_global_lock);
+    //    if (NULL == pmix_host_server.pset_operation) {
+    //        /* nothing we can do */
+    //        return PMIX_ERR_NOT_SUPPORTED;
+    //    }
+    //    pmix_output_verbose(2, pmix_globals.debug_output, "pmix:pset_operation handed to RM");
+    //    rc = pmix_host_server.pset_operation(&pmix_globals.myid, directive, info, ninfo, psetop_cbfunc, cbdata);
+    //    return rc;
+    //}
+    
+    /* if we are a client, then relay this request to the server */
+
+    /* if we aren't connected, don't attempt to send */
+    if (!PMIX_PEER_IS_SERVER(pmix_globals.mypeer) && !pmix_globals.connected) {
+        PMIX_RELEASE_THREAD(&pmix_global_lock);
+        return PMIX_ERR_UNREACH;
+    }
+    PMIX_RELEASE_THREAD(&pmix_global_lock);
+
+    msg = PMIX_NEW(pmix_buffer_t);
+    /* pack the cmd */
+    PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg, &cmd, 1, PMIX_COMMAND);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        PMIX_RELEASE(msg);
+        return rc;
+    }
+
+    /* pack the directive */
+    PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg, &directive, 1, PMIX_PSETOP_DIRECTIVE);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        PMIX_RELEASE(msg);
+        return rc;
+    }
+
+    /* pack the info */
+    PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg, &ninfo, 1, PMIX_SIZE);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        PMIX_RELEASE(msg);
+        return rc;
+    }
+    if (0 < ninfo) {
+        PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg, info, ninfo, PMIX_INFO);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_ERROR_LOG(rc);
+            PMIX_RELEASE(msg);
+            return rc;
+        }
+    }
+
+
+    /* create a callback object as we need to pass it to the
+     * recv routine so we know which callback to use when
+     * the return message is recvd */
+    cb = PMIX_NEW(pmix_query_caddy_t);
+    cb->cbfunc = cbfunc;
+    cb->cbdata = cbdata;
+    /* push the message into our event base to send to the server */
+    PMIX_PTL_SEND_RECV(rc, pmix_client_globals.myserver, msg, query_cbfunc, (void *) cb);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_RELEASE(msg);
+        PMIX_RELEASE(cb);
+    }
+    return rc;
+}
+
 
 /*
  * Determine if the keys is meant to be locally resolved
