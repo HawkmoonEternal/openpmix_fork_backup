@@ -15,7 +15,7 @@
  *                         reserved.
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2018      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -48,19 +48,16 @@
 #ifdef HAVE_DIRENT_H
 #    include <dirent.h>
 #endif
-#ifdef HAVE_SYS_SYSCTL_H
-#    include <sys/sysctl.h>
-#endif
 
 #include "src/client/pmix_client_ops.h"
 #include "src/include/pmix_socket_errno.h"
 #include "src/mca/bfrops/base/base.h"
 #include "src/mca/gds/gds.h"
 #include "src/server/pmix_server_ops.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/os_path.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_os_path.h"
+#include "src/util/pmix_show_help.h"
 
 #include "ptl_client.h"
 #include "src/mca/ptl/base/base.h"
@@ -77,7 +74,7 @@ static pmix_status_t connect_to_peer(struct pmix_peer_t *pr, pmix_info_t *info, 
     char *evar = NULL, *suri = NULL;
     char *nspace = NULL;
     pmix_rank_t rank = PMIX_RANK_WILDCARD;
-    char **server_nspace = NULL, *rendfile = NULL;
+    char *rendfile = NULL;
     pmix_status_t rc;
     pmix_peer_t *peer = (pmix_peer_t *) pr;
     size_t m, n;
@@ -224,14 +221,8 @@ complete:
     if (NULL != nspace) {
         free(nspace);
     }
-    if (NULL != rendfile) {
-        free(rendfile);
-    }
     if (NULL != suri) {
         free(suri);
-    }
-    if (NULL != server_nspace) {
-        free(server_nspace);
     }
     return rc;
 }

@@ -14,7 +14,7 @@
  * Copyright (c) 2012-2016 Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -27,7 +27,7 @@
 
 #    include "src/include/pmix_config.h"
 
-#    include "include/pmix_common.h"
+#    include "pmix_common.h"
 #    include "src/class/pmix_object.h"
 
 typedef struct pmix_mca_base_var_enum_t pmix_mca_base_var_enum_t;
@@ -85,7 +85,7 @@ typedef int (*pmix_mca_base_var_enum_dump_fn_t)(pmix_mca_base_var_enum_t *self, 
  * @retval PMIX_SUCCESS on success
  * @retval PMIX_ERR_VALUE_OUT_OF_BOUNDS if not found
  *
- * @long This function returns the string value for a given interger value in the
+ * @long This function returns the string value for a given integer value in the
  * {string_value} parameter. The {string_value} parameter may be NULL in which case
  * no string is returned. If a string is returned in {string_value} the caller
  * must free the string with free().

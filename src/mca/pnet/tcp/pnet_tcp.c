@@ -3,7 +3,7 @@
  * Copyright (c) 2018      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -28,18 +28,18 @@
 #endif
 #include <time.h>
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
 #include "src/include/pmix_socket_errno.h"
 #include "src/mca/preg/preg.h"
-#include "src/util/alfg.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/output.h"
-#include "src/util/parse_options.h"
-#include "src/util/pif.h"
+#include "src/util/apmix_lfg.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_parse_options.h"
+#include "src/util/pmix_if.h"
 #include "src/util/pmix_environ.h"
 
 #include "pnet_tcp.h"
@@ -198,12 +198,12 @@ static pmix_status_t tcp_init(void)
      *
      * NOTE: need to check inventory in addition to MCA param as
      * the inventory may have reported back static ports */
-    if (NULL == mca_pnet_tcp_component.static_ports) {
+    if (NULL == pmix_mca_pnet_tcp_component.static_ports) {
         return PMIX_SUCCESS;
     }
 
     /* split on semi-colons */
-    grps = pmix_argv_split(mca_pnet_tcp_component.static_ports, ';');
+    grps = pmix_argv_split(pmix_mca_pnet_tcp_component.static_ports, ';');
     for (n = 0; NULL != grps[n]; n++) {
         trk = PMIX_NEW(tcp_available_ports_t);
         if (NULL == trk) {
@@ -334,17 +334,17 @@ static pmix_status_t allocate(pmix_namespace_t *nptr, pmix_info_t info[], size_t
     }
 
     if (envars) {
-        if (NULL != mca_pnet_tcp_component.include) {
+        if (NULL != pmix_mca_pnet_tcp_component.include) {
             pmix_output_verbose(2, pmix_pnet_base_framework.framework_output,
                                 "pnet: tcp harvesting envars %s excluding %s",
-                                (NULL == mca_pnet_tcp_component.incparms)
+                                (NULL == pmix_mca_pnet_tcp_component.incparms)
                                     ? "NONE"
-                                    : mca_pnet_tcp_component.incparms,
-                                (NULL == mca_pnet_tcp_component.excparms)
+                                    : pmix_mca_pnet_tcp_component.incparms,
+                                (NULL == pmix_mca_pnet_tcp_component.excparms)
                                     ? "NONE"
-                                    : mca_pnet_tcp_component.excparms);
-            rc = pmix_util_harvest_envars(mca_pnet_tcp_component.include,
-                                          mca_pnet_tcp_component.exclude, ilist);
+                                    : pmix_mca_pnet_tcp_component.excparms);
+            rc = pmix_util_harvest_envars(pmix_mca_pnet_tcp_component.include,
+                                          pmix_mca_pnet_tcp_component.exclude, ilist);
             if (PMIX_SUCCESS != rc) {
                 return rc;
             }
@@ -544,11 +544,11 @@ static pmix_status_t allocate(pmix_namespace_t *nptr, pmix_info_t info[], size_t
             /* if they didn't specify either type or plane, then we got here because
              * nobody of a higher priority could act as a default transport - so try
              * to provide something here, starting by looking at any provided setting */
-            if (NULL != mca_pnet_tcp_component.default_request) {
+            if (NULL != pmix_mca_pnet_tcp_component.default_request) {
                 pmix_output_verbose(2, pmix_pnet_base_framework.framework_output,
                                     "pnet:tcp:allocate allocating default ports %s for nspace %s",
-                                    mca_pnet_tcp_component.default_request, nptr->nspace);
-                reqs = pmix_argv_split(mca_pnet_tcp_component.default_request, ';');
+                                    pmix_mca_pnet_tcp_component.default_request, nptr->nspace);
+                reqs = pmix_argv_split(pmix_mca_pnet_tcp_component.default_request, ';');
                 for (n = 0; NULL != reqs[n]; n++) {
                     /* if there is no colon, then it is just
                      * a number of ports to use */
@@ -903,7 +903,7 @@ static pmix_status_t collect_inventory(pmix_info_t directives[], size_t ndirs,
         } else {
             continue;
         }
-        (void) snprintf(uri, 2048, "%s%s", prefix, myconnhost);
+        (void) pmix_snprintf(uri, 2048, "%s%s", prefix, myconnhost);
         pmix_output_verbose(2, pmix_pnet_base_framework.framework_output,
                             "TCP INVENTORY ADDING: %s %s", name, uri);
         found = true;

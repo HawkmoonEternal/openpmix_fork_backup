@@ -15,7 +15,9 @@
  * Copyright (c) 2015      Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2022      Amazon.com, Inc. or its affiliates.
+ *                         All Rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -32,14 +34,13 @@
 #ifndef PMIX_ENVIRON_H
 #define PMIX_ENVIRON_H
 
-#include "src/include/pmix_config.h"
 
 #include <unistd.h>
 #ifdef HAVE_CRT_EXTERNS_H
 #    include <crt_externs.h>
 #endif
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/class/pmix_list.h"
 
 BEGIN_C_DECLS
@@ -53,7 +54,7 @@ BEGIN_C_DECLS
  * @retval New array of environ
  *
  * Merge two environ-like arrays into a single, new array,
- * ensuring that there are no duplicate entires.  If there are
+ * ensuring that there are no duplicate entries.  If there are
  * duplicates, entries in the \em major array are favored over
  * those in the \em minor array.
  *
@@ -71,53 +72,48 @@ PMIX_EXPORT char **pmix_environ_merge(char **minor,
                                       char **major) __pmix_attribute_warn_unused_result__;
 
 /**
- * Portable version of setenv(3), allowing editing of any
- * environ-like array.
+ * Merge contents of an environ-like array into a second environ-like
+ * array
+ *
+ * @param orig The environment to update
+ * @param additions The environment to merge into orig
+ *
+ * Merge the contents of \em additions into \em orig. If a key from
+ * \em additions is found in \em orig, then the value in orig is not
+ * updated (ie, it is an additions-only merge).  The original
+ * environment cannot be environ, because pmix_argv_append is used to
+ * extend the environment, and pmix_argv_append_nosize() may not be
+ * safe to call on environ (for the same reason that realloc() may
+ * note be safe to call on environ).
+ *
+ * New strings are allocated when copied, so both \em orig and \em
+ * additions individually maintain their ability to be freed with
+ * pmix_argv_free().
+ *
+ * Note that on error, the \em orig array may be partially updated
+ * with values from additions, but the array will still be a valid
+ * argv-style array.
+ */
+PMIX_EXPORT pmix_status_t pmix_environ_merge_inplace(char ***orig,
+						     char **additions)
+    __pmix_attribute_warn_unused_result__ __pmix_attribute_nonnull__(1);
+
+/**
+ * Portable version of getenv(3), allowing searches of any key=value array
  *
  * @param name String name of the environment variable to look for
- * @param value String value to set (may be NULL)
- * @param overwrite Whether to overwrite any existing value with
- * the same name
  * @param env The environment to use
  *
- * @retval PMIX_ERR_OUT_OF_RESOURCE If internal malloc() fails.
- * @retval PMIX_EXISTS If the name already exists in \em env and
- * \em overwrite is false (and therefore the \em value was not
- * saved in \em env)
- * @retval PMIX_SUCESS If the value replaced another value or is
- * appended to \em env.
+ * The return value will be a pointer to the start of the value
+ * string.  The string returned should not be free()ed or modified by
+ * the caller, similar to getenv().
  *
- * \em env is expected to be a NULL-terminated array of pointers
- * (argv-style).  Note that unlike some implementations of
- * putenv(3), if \em value is inserted in \em env, it is copied.
- * So the caller can modify/free both \em name and \em value after
- * pmix_setenv() returns.
- *
- * The \em env array will be grown if necessary.
- *
- * It is permissable to invoke this function with the
- * system-defined \em environ variable.  For example:
- *
- * \code
- *   #include "pmix/util/pmix_environ.h"
- *   pmix_setenv("foo", "bar", true, &environ);
- * \endcode
- *
- * NOTE: If you use the real environ, pmix_setenv() will turn
- * around and perform putenv() to put the value in the
- * environment.  This may very well lead to a memory leak, so its
- * use is strongly discouraged.
- *
- * It is also permissable to call this function with an empty \em
- * env, as long as it is pre-initialized with NULL:
- *
- * \code
- *   char **my_env = NULL;
- *   pmix_setenv("foo", "bar", true, &my_env);
- * \endcode
+ * Unlike getenv(), pmix_getenv() will accept a \em name in key=value
+ * format.  In that case, only the key portion of \em name is used for
+ * the search, and the return value of pmix_getenv() is the value of
+ * the same key in \em env.
  */
-PMIX_EXPORT pmix_status_t pmix_setenv(const char *name, const char *value, bool overwrite,
-                                      char ***env) __pmix_attribute_nonnull__(1);
+PMIX_EXPORT char * pmix_getenv(const char *name, char **env) __pmix_attribute_nonnull__(1);
 
 /**
  * Portable version of unsetenv(3), allowing editing of any

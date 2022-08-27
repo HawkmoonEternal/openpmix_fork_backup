@@ -31,11 +31,20 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "include/pmix.h"
 #include "simptest.h"
 
 static pmix_proc_t myproc;
+static void hide_unused_params(int x, ...)
+{
+    va_list ap;
+
+    va_start(ap, x);
+    va_end(ap);
+}
+
 
 /* this is the event notification function we pass down below
  * when registering for general events - i.e.,, the default
@@ -46,6 +55,10 @@ static void notification_fn(size_t evhdlr_registration_id, pmix_status_t status,
                             pmix_info_t results[], size_t nresults,
                             pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
+    int rc = 0;
+    hide_unused_params(rc, evhdlr_registration_id, status, source, info, ninfo,
+                       results, nresults);
+
     if (NULL != cbfunc) {
         cbfunc(PMIX_EVENT_ACTION_COMPLETE, NULL, 0, NULL, NULL, cbdata);
     }
@@ -74,6 +87,8 @@ static void infocbfunc(pmix_status_t status, pmix_info_t *info, size_t ninfo, vo
                        pmix_release_cbfunc_t release_fn, void *release_cbdata)
 {
     mylock_t *lk = (mylock_t *) cbdata;
+    int rc = 0;
+    hide_unused_params(rc, info, ninfo);
 
     fprintf(stderr, "Callback recvd with status %d\n", status);
 
@@ -88,7 +103,7 @@ static void infocbfunc(pmix_status_t status, pmix_info_t *info, size_t ninfo, vo
 
 int main(int argc, char **argv)
 {
-    int rc;
+    int rc=0;
     pmix_value_t value;
     pmix_value_t *val = &value;
     pmix_proc_t proc;
@@ -97,6 +112,7 @@ int main(int argc, char **argv)
     bool flag;
     mylock_t mylock;
     pmix_data_array_t *dptr;
+    hide_unused_params(rc, argc, argv);
 
     /* init us - note that the call to "init" includes the return of
      * any job-related info provided by the RM. */
@@ -124,11 +140,11 @@ int main(int argc, char **argv)
      * wildcard rank as it doesn't relate to a specific rank. Setup
      * a name to retrieve such values */
     PMIX_PROC_CONSTRUCT(&proc);
-    (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
 
     /* get our job size */
-    (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
     if (PMIX_SUCCESS != (rc = PMIx_Get(&proc, PMIX_JOB_SIZE, NULL, 0, &val))) {
         fprintf(stderr, "Client ns %s rank %d: PMIx_Get job size failed: %s\n", myproc.nspace,
@@ -145,7 +161,7 @@ int main(int argc, char **argv)
     flag = true;
     PMIX_INFO_LOAD(&info[0], PMIX_JOB_CTRL_PREEMPTIBLE, (void *) &flag, PMIX_BOOL);
     /* can't use "load" to load a pmix_data_array_t */
-    (void) strncpy(info[1].key, PMIX_JOB_CTRL_CHECKPOINT_METHOD, PMIX_MAX_KEYLEN);
+    pmix_strncpy(info[1].key, PMIX_JOB_CTRL_CHECKPOINT_METHOD, PMIX_MAX_KEYLEN);
     info[1].value.type = PMIX_DATA_ARRAY;
     dptr = (pmix_data_array_t *) malloc(sizeof(pmix_data_array_t));
     info[1].value.data.darray = dptr;

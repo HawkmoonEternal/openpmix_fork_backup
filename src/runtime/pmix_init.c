@@ -18,7 +18,8 @@
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015      Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
+ * Copyright (c) 2022      Triad National Security, LLC. All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -35,14 +36,13 @@
 #endif
 
 #include "src/include/pmix_globals.h"
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/base/pmix_mca_base_var.h"
 #include "src/mca/bfrops/base/base.h"
 #include "src/mca/gds/base/base.h"
 #include "src/mca/pcompress/base/base.h"
 #include "src/mca/pif/base/base.h"
 #include "src/mca/pinstalldirs/base/base.h"
-#include "src/mca/ploc/base/base.h"
 #include "src/mca/plog/base/base.h"
 #include "src/mca/pnet/base/base.h"
 #include "src/mca/preg/base/base.h"
@@ -50,82 +50,91 @@
 #include "src/mca/psquash/base/base.h"
 #include "src/mca/pstrg/base/base.h"
 #include "src/mca/ptl/base/base.h"
-#include "src/util/name_fns.h"
-#include "src/util/net.h"
-#include "src/util/output.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_net.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_show_help.h"
 
 #include "src/client/pmix_client_ops.h"
 #include "src/common/pmix_attributes.h"
 #include "src/event/pmix_event.h"
-#include "src/include/types.h"
-#include "src/util/error.h"
-#include "src/util/keyval_parse.h"
+#include "src/include/pmix_dictionary.h"
+#include "src/include/pmix_types.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_keyval_parse.h"
 
 #include "src/runtime/pmix_progress_threads.h"
 #include "src/runtime/pmix_rte.h"
+#include "src/runtime/pmix_init_util.h"
 
 const char pmix_version_string[] = PMIX_IDENT_STRING;
+const char* pmix_tool_basename = NULL;
+const char* pmix_tool_version = PMIX_VERSION;
+const char* pmix_tool_org = "PMIx";
+const char* pmix_tool_msg = PMIX_PROXY_BUGREPORT_STRING;
 
-PMIX_EXPORT int pmix_initialized = 0;
 PMIX_EXPORT bool pmix_init_called = false;
 /* we have to export the pmix_globals object so
- * all plugins can access it. However, it is included
- * in the pmix_rename.h file for external protection.
- * Initialize only those entries that are not covered
- * by MCA params or are complex structures initialized
- * below */
-PMIX_EXPORT pmix_globals_t pmix_globals = {.init_cntr = 0,
-                                           .mypeer = NULL,
-                                           .hostname = NULL,
-                                           .nodeid = UINT32_MAX,
-                                           .pindex = 0,
-                                           .evbase = NULL,
-                                           .debug_output = -1,
-                                           .connected = false,
-                                           .commits_pending = false,
-                                           .pushstdin = false,
-                                           .topology = {NULL, NULL},
-                                           .cpuset = {NULL, NULL},
-                                           .external_topology = false,
-                                           .external_progress = false};
+ * all plugins can access it. */
+PMIX_EXPORT pmix_globals_t pmix_globals = {
+    .init_cntr = 0,
+    .myid = PMIX_PROC_STATIC_INIT,
+    .myidval = PMIX_VALUE_STATIC_INIT,
+    .myrankval = PMIX_VALUE_STATIC_INIT,
+    .mypeer = NULL,
+    .uid = 0,
+    .gid = 0,
+    .hostname = NULL,
+    .appnum = 0,
+    .pid = 0,
+    .nodeid = UINT32_MAX,
+    .sessionid = UINT32_MAX,
+    .pindex = 0,
+    .evbase = NULL,
+    .debug_output = -1,
+    .events = PMIX_EVENTS_STATIC_INIT,
+    .connected = false,
+    .commits_pending = false,
+    .event_window = {0, 0},
+    .cached_events = PMIX_LIST_STATIC_INIT,
+    .iof_requests = PMIX_POINTER_ARRAY_STATIC_INIT,
+    .max_events = INT_MAX,
+    .event_eviction_time = 0,
+    .notifications = PMIX_HOTEL_STATIC_INIT,
+    .pushstdin = false,
+    .stdin_targets = PMIX_LIST_STATIC_INIT,
+    .tag_output = false,
+    .xml_output = false,
+    .timestamp_output = false,
+    .output_limit = SIZE_MAX,
+    .nspaces = PMIX_LIST_STATIC_INIT,
+    .topology = {NULL, NULL},
+    .cpuset = {NULL, NULL},
+    .external_topology = false,
+    .external_progress = false,
+    .iof_flags = PMIX_IOF_FLAGS_STATIC_INIT,
+    .keyindex = PMIX_POINTER_ARRAY_STATIC_INIT,
+    .next_keyid = PMIX_INDEX_BOUNDARY
+};
 
 static void _notification_eviction_cbfunc(struct pmix_hotel_t *hotel, int room_num, void *occupant)
 {
     pmix_notify_caddy_t *cache = (pmix_notify_caddy_t *) occupant;
+    PMIX_HIDE_UNUSED_PARAMS(hotel, room_num);
+
     PMIX_RELEASE(cache);
 }
 
-int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfunc_t cbfunc)
-{
-    int ret, debug_level;
-    char *error = NULL, *evar;
-    size_t n, m;
-    char hostname[PMIX_MAXHOSTNAMELEN] = {0};
-    pmix_info_t *iptr;
-    size_t minfo;
-    bool keepfqdn = false;
+static bool util_initialized = false;
 
-    if (++pmix_initialized != 1) {
-        if (pmix_initialized < 1) {
-            return PMIX_ERROR;
-        }
+int pmix_init_util(pmix_info_t info[], size_t ninfo, char *helpdir)
+{
+    pmix_status_t ret;
+
+    if (util_initialized) {
         return PMIX_SUCCESS;
     }
-
-#if PMIX_NO_LIB_DESTRUCTOR
-    if (pmix_init_called) {
-        /* can't use show_help here */
-        fprintf(
-            stderr,
-            "pmix_init: attempted to initialize after finalize without compiler "
-            "support for either __attribute__(destructor) or linker support for -fini -- process "
-            "will likely abort\n");
-        return PMIX_ERR_NOT_SUPPORTED;
-    }
-#endif
-
-    pmix_init_called = true;
+    util_initialized = true;
 
     /* initialize the output system */
     if (!pmix_output_init()) {
@@ -133,9 +142,9 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
     }
 
     /* initialize install dirs code */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_pinstalldirs_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_pinstalldirs_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         fprintf(stderr,
                 "pmix_pinstalldirs_base_open() failed -- process will likely abort (%s:%d, "
                 "returned %d instead of PMIX_SUCCESS)\n",
@@ -151,32 +160,122 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
     }
 
     /* initialize the help system */
-    pmix_show_help_init();
+    pmix_show_help_init(helpdir);
 
     /* keyval lex-based parser */
     if (PMIX_SUCCESS != (ret = pmix_util_keyval_parse_init())) {
-        error = "pmix_util_keyval_parse_init";
-        goto return_error;
+        fprintf(stderr, "pmix_util_keyval_parse_init failed\n");
+        return ret;
     }
 
     /* Setup the parameter system */
     if (PMIX_SUCCESS != (ret = pmix_mca_base_var_init())) {
-        error = "mca_base_var_init";
-        goto return_error;
+        fprintf(stderr, "mca_base_var_init failed\n");
+        return ret;
     }
 
     /* register params for pmix */
     if (PMIX_SUCCESS != (ret = pmix_register_params())) {
-        error = "pmix_register_params";
-        goto return_error;
+        fprintf(stderr, "pmix_register_params failed\n");
+        return ret;
     }
 
     /* initialize the mca */
-    if (PMIX_SUCCESS != (ret = pmix_mca_base_open())) {
-        error = "mca_base_open";
-        goto return_error;
+    if (PMIX_SUCCESS != (ret = pmix_mca_base_open(NULL))) {
+        fprintf(stderr, "pmix_mca_base_open failed\n");
+        return ret;
     }
 
+    if (PMIX_SUCCESS != (ret = pmix_net_init())) {
+        fprintf(stderr, "pmix_net_init failed\n");
+        return ret;
+    }
+
+    /* initialize pif framework */
+    ret = pmix_mca_base_framework_open(&pmix_pif_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
+        fprintf(stderr, "pmix_pif_base_open failed\n");
+        return ret;
+    }
+
+    return PMIX_SUCCESS;
+}
+
+int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfunc_t cbfunc)
+{
+    int ret, debug_level;
+    char *error = NULL, *evar;
+    size_t n, m;
+    char hostname[PMIX_MAXHOSTNAMELEN] = {0};
+    pmix_info_t *iptr;
+    size_t minfo;
+    bool keepfqdn = false;
+
+#if PMIX_NO_LIB_DESTRUCTOR
+    if (pmix_init_called) {
+        /* can't use pmix_show_help.here */
+        fprintf(
+            stderr,
+            "pmix_init: attempted to initialize after finalize without compiler "
+            "support for either __attribute__(destructor) or linker support for -fini -- process "
+            "will likely abort\n");
+        return PMIX_ERR_NOT_SUPPORTED;
+    }
+#endif
+
+    pmix_init_called = true;
+
+    if (PMIX_SUCCESS != pmix_init_util(info, ninfo, NULL)) {
+        return PMIX_ERROR;
+    }
+
+    /* scan incoming info for directives */
+    if (NULL != info) {
+        for (n = 0; n < ninfo; n++) {
+            if (PMIX_CHECK_KEY(&info[n], PMIX_HOSTNAME)) {
+                if (NULL != pmix_globals.hostname) {
+                    free(pmix_globals.hostname);
+                }
+                pmix_globals.hostname = strdup(info[n].value.data.string);
+            } else if (PMIX_CHECK_KEY(&info[n], PMIX_NODEID)) {
+                PMIX_VALUE_GET_NUMBER(ret, &info[n].value, pmix_globals.nodeid, uint32_t);
+                if (PMIX_SUCCESS != ret) {
+                    goto return_error;
+                }
+            } else if (PMIX_CHECK_KEY(&info[n], PMIX_NODE_INFO_ARRAY)) {
+                /* contains info about our node */
+                iptr = (pmix_info_t *) info[n].value.data.darray->array;
+                minfo = info[n].value.data.darray->size;
+                for (m = 0; m < minfo; m++) {
+                    if (PMIX_CHECK_KEY(&iptr[m], PMIX_HOSTNAME)) {
+                        if (NULL != pmix_globals.hostname) {
+                            free(pmix_globals.hostname);
+                        }
+                        pmix_globals.hostname = strdup(iptr[m].value.data.string);
+                    } else if (PMIX_CHECK_KEY(&iptr[m], PMIX_NODEID)) {
+                        PMIX_VALUE_GET_NUMBER(ret, &iptr[m].value, pmix_globals.nodeid, uint32_t);
+                        if (PMIX_SUCCESS != ret) {
+                            goto return_error;
+                        }
+                    }
+                }
+            } else if (PMIX_CHECK_KEY(&info[n], PMIX_EXTERNAL_PROGRESS)) {
+                pmix_globals.external_progress = PMIX_INFO_TRUE(&info[n]);
+            } else if (PMIX_CHECK_KEY(&info[n], PMIX_HOSTNAME_KEEP_FQDN)) {
+                keepfqdn = PMIX_INFO_TRUE(&info[n]);
+            } else if (PMIX_CHECK_KEY(&info[n], PMIX_BIND_PROGRESS_THREAD)) {
+                if (NULL != pmix_progress_thread_cpus) {
+                    free(pmix_progress_thread_cpus);
+                }
+                pmix_progress_thread_cpus = strdup(info[n].value.data.string);
+            } else if (PMIX_CHECK_KEY(&info[n], PMIX_BIND_REQUIRED)) {
+                pmix_bind_progress_thread_reqd = PMIX_INFO_TRUE(&info[n]);
+            } else {
+                pmix_iof_check_flags(&info[n], &pmix_globals.iof_flags);
+            }
+        }
+    }
     /* tell libevent that we need thread support */
     pmix_event_use_threads();
 
@@ -207,9 +306,11 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
     ret = pmix_hotel_init(&pmix_globals.notifications, pmix_globals.max_events, pmix_globals.evbase,
                           pmix_globals.event_eviction_time, _notification_eviction_cbfunc);
     PMIX_CONSTRUCT(&pmix_globals.nspaces, pmix_list_t);
+    PMIX_CONSTRUCT(&pmix_globals.keyindex, pmix_pointer_array_t);
+    pmix_pointer_array_init(&pmix_globals.keyindex, 1024, INT_MAX, 128);
     /* need to hold off checking the hotel init return code
      * until after we construct all the globals so they can
-     * correct finalize */
+     * correctly finalize */
     if (PMIX_SUCCESS != ret) {
         error = "notification hotel init";
         goto return_error;
@@ -293,45 +394,6 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
         goto return_error;
     }
 
-    /* scan incoming info for directives */
-    if (NULL != info) {
-        for (n = 0; n < ninfo; n++) {
-            if (PMIX_CHECK_KEY(&info[n], PMIX_HOSTNAME)) {
-                if (NULL != pmix_globals.hostname) {
-                    free(pmix_globals.hostname);
-                }
-                pmix_globals.hostname = strdup(info[n].value.data.string);
-            } else if (PMIX_CHECK_KEY(&info[n], PMIX_NODEID)) {
-                PMIX_VALUE_GET_NUMBER(ret, &info[n].value, pmix_globals.nodeid, uint32_t);
-                if (PMIX_SUCCESS != ret) {
-                    goto return_error;
-                }
-            } else if (PMIX_CHECK_KEY(&info[n], PMIX_NODE_INFO_ARRAY)) {
-                /* contains info about our node */
-                iptr = (pmix_info_t *) info[n].value.data.darray->array;
-                minfo = info[n].value.data.darray->size;
-                for (m = 0; m < minfo; m++) {
-                    if (PMIX_CHECK_KEY(&iptr[m], PMIX_HOSTNAME)) {
-                        if (NULL != pmix_globals.hostname) {
-                            free(pmix_globals.hostname);
-                        }
-                        pmix_globals.hostname = strdup(iptr[m].value.data.string);
-                    } else if (PMIX_CHECK_KEY(&iptr[m], PMIX_NODEID)) {
-                        PMIX_VALUE_GET_NUMBER(ret, &iptr[m].value, pmix_globals.nodeid, uint32_t);
-                        if (PMIX_SUCCESS != ret) {
-                            goto return_error;
-                        }
-                    }
-                }
-            } else if (PMIX_CHECK_KEY(&info[n], PMIX_EXTERNAL_PROGRESS)) {
-                pmix_globals.external_progress = PMIX_INFO_TRUE(&info[n]);
-            } else if (PMIX_CHECK_KEY(&info[n], PMIX_HOSTNAME_KEEP_FQDN)) {
-                keepfqdn = PMIX_INFO_TRUE(&info[n]);
-            } else {
-                pmix_iof_check_flags(&info[n], &pmix_globals.iof_flags);
-            }
-        }
-    }
 
     /* the passed-in hostname trumps all, so don't overwrite it
      * if we were given one */
@@ -355,9 +417,9 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
      * will be done by the individual init functions and at the
      * time of connection to that peer */
 
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_psquash_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_psquash_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         error = "pmix_psquash_base_open";
         goto return_error;
     }
@@ -374,9 +436,9 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
     }
 
     /* open the bfrops and select the active plugins */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_bfrops_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_bfrops_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         error = "pmix_bfrops_base_open";
         goto return_error;
     }
@@ -386,9 +448,9 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
     }
 
     /* open and select the compress framework */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_pcompress_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_pcompress_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         error = "pmix_pcompress_base_open";
         goto return_error;
     }
@@ -398,9 +460,9 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
     }
 
     /* open the ptl and select the active plugins */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_ptl_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_ptl_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         error = "pmix_ptl_base_open";
         goto return_error;
     }
@@ -419,9 +481,9 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
         /* convert to an MCA param, but don't overwrite something already there */
         pmix_setenv("PMIX_MCA_psec", evar, false, &environ);
     }
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_psec_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_psec_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         error = "pmix_psec_base_open";
         goto return_error;
     }
@@ -431,9 +493,9 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
     }
 
     /* open the gds and select the active plugins */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_gds_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_gds_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         error = "pmix_gds_base_open";
         goto return_error;
     }
@@ -442,18 +504,10 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
         goto return_error;
     }
 
-    /* initialize pif framework */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_pif_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
-        error = "pmix_pif_base_open";
-        return ret;
-    }
-
     /* open the preg and select the active plugins - must come after pcompress! */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_preg_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_preg_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         error = "pmix_preg_base_open";
         goto return_error;
     }
@@ -463,9 +517,9 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
     }
 
     /* open the plog and select the active plugins */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_plog_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_plog_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         error = "pmix_plog_base_open";
         goto return_error;
     }
@@ -474,22 +528,10 @@ int pmix_rte_init(uint32_t type, pmix_info_t info[], size_t ninfo, pmix_ptl_cbfu
         goto return_error;
     }
 
-    /* open the ploc and select the active plugins */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_ploc_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
-        error = "pmix_ploc_base_open";
-        goto return_error;
-    }
-    if (PMIX_SUCCESS != (ret = pmix_ploc_base_select())) {
-        error = "pmix_ploc_base_select";
-        goto return_error;
-    }
-
     /* open the pstrg framework */
-    if (PMIX_SUCCESS
-        != (ret = pmix_mca_base_framework_open(&pmix_pstrg_base_framework,
-                                               PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    ret = pmix_mca_base_framework_open(&pmix_pstrg_base_framework,
+                                       PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != ret) {
         error = "pmix_strg_base_open";
         goto return_error;
     }

@@ -1,7 +1,7 @@
 /* -*- Mode: C; c-basic-offset:4 ; indent-tabs-mode:nil -*- */
 /*
  * Copyright (c) 2020      Google, LLC. All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -12,7 +12,7 @@
 #include "pmix_config.h"
 #include <string.h>
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/class/pmix_hash_table.h"
 #include "src/mca/base/pmix_mca_base_alias.h"
 
@@ -152,6 +152,7 @@ int pmix_mca_base_alias_register(const char *project, const char *framework,
     if (NULL == alias) {
         alias = PMIX_NEW(pmix_mca_base_alias_t);
         if (NULL == alias) {
+            free(name);
             return PMIX_ERR_OUT_OF_RESOURCE;
         }
 
@@ -162,8 +163,9 @@ int pmix_mca_base_alias_register(const char *project, const char *framework,
 
     pmix_mca_base_alias_item_t *alias_item = PMIX_NEW(pmix_mca_base_alias_item_t);
     if (NULL == alias_item) {
-        if (NULL != name)
+        if (NULL != name) {
             free(name);
+        }
         return PMIX_ERR_OUT_OF_RESOURCE;
     }
 
@@ -171,7 +173,9 @@ int pmix_mca_base_alias_register(const char *project, const char *framework,
     alias_item->alias_flags = alias_flags;
 
     pmix_list_append(&alias->component_aliases, &alias_item->super);
-
+    if (NULL != name) {
+        free(name);
+    }
     return PMIX_SUCCESS;
 }
 

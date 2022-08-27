@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -24,18 +24,17 @@ typedef struct {
     char *excparms;
     char **include;
     char **exclude;
-    int radix;
 } pmix_pnet_opa_component_t;
 
 /* the component must be visible data for the linker to find it */
-PMIX_EXPORT extern pmix_pnet_opa_component_t mca_pnet_opa_component;
+PMIX_EXPORT extern pmix_pnet_opa_component_t pmix_mca_pnet_opa_component;
 extern pmix_pnet_module_t pmix_opa_module;
 
 /* define a key for any blob we need to send in a launch msg */
 #define PMIX_PNET_OPA_BLOB "pmix.pnet.opa.blob"
 
 /* define an inventory key */
-#define PMIX_OPA_INVENTORY_KEY "pmix.opa.inventory"
+#define PMIX_PNET_OPA_INVENTORY_KEY "pmix.pnet.opa.inventory"
 
 END_C_DECLS
 

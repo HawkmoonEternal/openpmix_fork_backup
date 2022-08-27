@@ -115,7 +115,7 @@ AC_DEFUN([PMIX_PROG_CC_C11],[
             for flag in $(echo $pmix_prog_cc_c11_flags | tr ' ' '\n') ; do
                 PMIX_PROG_CC_C11_HELPER([$flag],[pmix_cv_c11_flag=$flag],[])
                 if test "x$pmix_cv_c11_flag" != "x" ; then
-                    CFLAGS="$CFLAGS $pmix_cv_c11_flag"
+                    PMIX_APPEND_UNIQ([CFLAGS], ["$pmix_cv_c11_flag"])
                     AC_MSG_NOTICE([using $flag to enable C11 support])
                     pmix_cv_c11_supported=yes
                     break
@@ -181,7 +181,7 @@ AC_DEFUN([PMIX_SETUP_CC],[
         # following lines and update the warning when we require a C11 compiler.
         # AC_MSG_WARNING([Open MPI requires a C11 (or newer) compiler])
         # AC_MSG_ERROR([Aborting.])
-        # From Open MPI 1.7 on we require a C99 compiant compiler
+        # From Open MPI 1.7 on we require a C99 compliant compiler
         # with autoconf 2.70 AC_PROG_CC makes AC_PROG_CC_C99 obsolete
         m4_version_prereq([2.70],
             [],
@@ -205,7 +205,7 @@ AC_DEFUN([PMIX_SETUP_CC],[
     PMIX_CC_HELPER([if $CC $1 supports C11 _Thread_local], [pmix_prog_cc_c11_helper__Thread_local_available],
                    [],[[static _Thread_local int  foo = 1;++foo;]])
 
-    dnl At this time, PMIx only needs thread local and the atomic convenience tyes for C11 suport. These
+    dnl At this time, PMIx only needs thread local and the atomic convenience types for C11 support. These
     dnl will likely be required in the future.
     AC_DEFINE_UNQUOTED([PMIX_C_HAVE__THREAD_LOCAL], [$pmix_prog_cc_c11_helper__Thread_local_available],
                        [Whether C compiler supports __Thread_local])
@@ -249,7 +249,7 @@ AC_DEFUN([PMIX_SETUP_CC],[
         # compiling and linking to circumvent trouble with
         # libgcov.
         LDFLAGS_orig="$LDFLAGS"
-        LDFLAGS="$LDFLAGS_orig --coverage"
+        PMIX_APPEND_UNIQ([LDFLAGS], ["$--coverage"])
         PMIX_COVERAGE_FLAGS=
 
         _PMIX_CHECK_SPECIFIC_CFLAGS(--coverage, coverage)
@@ -268,37 +268,19 @@ AC_DEFUN([PMIX_SETUP_CC],[
             CLEANFILES="*.bb *.bbg ${CLEANFILES}"
             PMIX_COVERAGE_FLAGS="-ftest-coverage -fprofile-arcs"
         fi
-        PMIX_FLAGS_UNIQ(CFLAGS)
-        PMIX_FLAGS_UNIQ(LDFLAGS)
         WANT_DEBUG=1
    fi
 
     # Do we want debugging?
     if test "$WANT_DEBUG" = "1" && test "$enable_debug_symbols" != "no" ; then
-        CFLAGS="$CFLAGS -g"
+        PMIX_APPEND_UNIQ([CFLAGS], ["-g"])
 
-        PMIX_FLAGS_UNIQ(CFLAGS)
         AC_MSG_WARN([-g has been added to CFLAGS (--enable-debug)])
     fi
 
     # These flags are generally gcc-specific; even the
     # gcc-impersonating compilers won't accept them.
     PMIX_CFLAGS_BEFORE_PICKY="$CFLAGS"
-
-    if test $WANT_PICKY_COMPILER -eq 1; then
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wundef, Wundef)
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wno-long-long, Wno_long_long, int main() { long long x; })
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wsign-compare, Wsign_compare)
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wmissing-prototypes, Wmissing_prototypes)
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wstrict-prototypes, Wstrict_prototypes)
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wcomment, Wcomment)
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wshadow, Wshadow)
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Werror-implicit-function-declaration, Werror_implicit_function_declaration)
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wno-long-double, Wno_long_double, int main() { long double x; })
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-fno-strict-aliasing, fno_strict_aliasing, int main () { int x; })
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-pedantic, pedantic)
-        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wall, Wall)
-    fi
 
     # Note: Some versions of clang (at least >= 3.5 -- perhaps
     # older versions, too?) and xlc with -g (v16.1, perhaps older)
@@ -325,7 +307,6 @@ AC_DEFUN([PMIX_SETUP_CC],[
         _PMIX_CHECK_SPECIFIC_CFLAGS($RESTRICT_CFLAGS, restrict)
     fi
 
-    PMIX_FLAGS_UNIQ([CFLAGS])
     AC_MSG_RESULT(CFLAGS result: $CFLAGS)
 
     # see if the C compiler supports __builtin_expect
@@ -429,4 +410,28 @@ AC_DEFUN([_PMIX_PROG_CC],[
     PMIX_WHICH([$pmix_cc_argv0], [PMIX_CC_ABSOLUTE])
     AC_SUBST(PMIX_CC_ABSOLUTE)
     PMIX_VAR_SCOPE_POP
+])
+
+AC_DEFUN([PMIX_SETUP_PICKY_COMPILERS],[
+    if test $WANT_PICKY_COMPILER -eq 1 && test "$pmix_c_vendor" != "pgi"; then
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wundef, Wundef)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wno-long-long, Wno_long_long, int main() { long long x; })
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wsign-compare, Wsign_compare)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wmissing-prototypes, Wmissing_prototypes)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wstrict-prototypes, Wstrict_prototypes)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wcomment, Wcomment)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wshadow, Wshadow)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Werror-implicit-function-declaration, Werror_implicit_function_declaration)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wno-long-double, Wno_long_double, int main() { long double x; })
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-fno-strict-aliasing, fno_strict_aliasing, int main () { int x; })
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-pedantic, pedantic)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wall, Wall)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Wextra, Wextra)
+        _PMIX_CHECK_SPECIFIC_CFLAGS(-Werror, Werror)
+        if test $WANT_MEMORY_SANITIZERS -eq 1 && test "$pmix_c_vendor" != "pgi"; then
+            _PMIX_CHECK_SPECIFIC_CFLAGS(-fsanitize=address, fsanaddress)
+            _PMIX_CHECK_SPECIFIC_CFLAGS(-fsanitize=undefined, fsanundefined)
+        fi
+    fi
+
 ])

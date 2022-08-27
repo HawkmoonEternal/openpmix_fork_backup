@@ -15,7 +15,7 @@
  * Copyright (c) 2011      Oak Ridge National Labs.  All rights reserved.
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015      Mellanox Technologies, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -33,9 +33,10 @@
 #include <unistd.h>
 
 #include "src/class/pmix_object.h"
-#include "src/util/argv.h"
-#include "src/util/output.h"
-#include "src/util/printf.h"
+#include "src/include/pmix_globals.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_printf.h"
 
 int main(int argc, char **argv)
 {
@@ -47,6 +48,7 @@ int main(int argc, char **argv)
     pmix_info_t *info;
     pmix_pdata_t *pdata;
     pmix_proc_t myproc;
+    PMIX_HIDE_UNUSED_PARAMS(argc, argv);
 
     /* init us */
     if (PMIX_SUCCESS != (rc = PMIx_Init(&myproc, NULL, 0))) {
@@ -57,7 +59,7 @@ int main(int argc, char **argv)
     pmix_output(0, "Client ns %s rank %d: Running", myproc.nspace, myproc.rank);
 
     /* get our job size */
-    (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
     if (PMIX_SUCCESS != (rc = PMIx_Get(&proc, PMIX_JOB_SIZE, NULL, 0, &val))) {
         pmix_output(0, "Client ns %s rank %d: PMIx_Get job size failed: %s", myproc.nspace,
@@ -70,7 +72,7 @@ int main(int argc, char **argv)
 
     /* call fence to ensure the data is received */
     PMIX_PROC_CONSTRUCT(&proc);
-    (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
     if (PMIX_SUCCESS != (rc = PMIx_Fence(&proc, 1, NULL, 0))) {
         pmix_output(0, "Client ns %s rank %d: PMIx_Fence failed: %d", myproc.nspace, myproc.rank,
@@ -81,10 +83,10 @@ int main(int argc, char **argv)
     /* publish something */
     if (0 == myproc.rank) {
         PMIX_INFO_CREATE(info, 2);
-        (void) strncpy(info[0].key, "FOOBAR", PMIX_MAX_KEYLEN);
+        pmix_strncpy(info[0].key, "FOOBAR", PMIX_MAX_KEYLEN);
         info[0].value.type = PMIX_UINT8;
         info[0].value.data.uint8 = 1;
-        (void) strncpy(info[1].key, "PANDA", PMIX_MAX_KEYLEN);
+        pmix_strncpy(info[1].key, "PANDA", PMIX_MAX_KEYLEN);
         info[1].value.type = PMIX_SIZE;
         info[1].value.data.size = 123456;
         if (PMIX_SUCCESS != (rc = PMIx_Publish(info, 2))) {
@@ -106,7 +108,7 @@ int main(int argc, char **argv)
     /* lookup something */
     if (0 != myproc.rank) {
         PMIX_PDATA_CREATE(pdata, 1);
-        (void) strncpy(pdata[0].key, "FOOBAR", PMIX_MAX_KEYLEN);
+        pmix_strncpy(pdata[0].key, "FOOBAR", PMIX_MAX_KEYLEN);
         if (PMIX_SUCCESS != (rc = PMIx_Lookup(pdata, 1, NULL, 0))) {
             pmix_output(0, "Client ns %s rank %d: PMIx_Lookup failed: %d", myproc.nspace,
                         myproc.rank, rc);

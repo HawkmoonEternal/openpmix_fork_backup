@@ -65,7 +65,7 @@ struct pmix_ptl_base_t {
     int stop_thread[2];
     bool listen_thread_active;
     pmix_listener_t listener;
-    struct sockaddr_storage connection;
+    struct sockaddr_storage *connection;
     uint32_t current_tag;
     size_t max_msg_size;
     char *session_tmpdir;
@@ -146,7 +146,7 @@ PMIX_EXPORT pmix_status_t pmix_ptl_base_recv_blocking(int sd, char *data, size_t
 PMIX_EXPORT pmix_status_t pmix_ptl_base_connect(struct sockaddr_storage *addr, pmix_socklen_t len,
                                                 int *fd);
 PMIX_EXPORT void pmix_ptl_base_connection_handler(int sd, short args, void *cbdata);
-PMIX_EXPORT pmix_status_t pmix_ptl_base_setup_listener(void);
+PMIX_EXPORT pmix_status_t pmix_ptl_base_setup_listener(pmix_info_t info[], size_t ninfo);
 PMIX_EXPORT pmix_status_t pmix_ptl_base_send_connect_ack(int sd);
 PMIX_EXPORT pmix_status_t pmix_ptl_base_recv_connect_ack(int sd);
 PMIX_EXPORT void pmix_ptl_base_lost_connection(pmix_peer_t *peer, pmix_status_t err);
@@ -170,7 +170,8 @@ PMIX_EXPORT pmix_status_t pmix_ptl_base_set_timeout(pmix_peer_t *peer, struct ti
 PMIX_EXPORT void pmix_ptl_base_setup_socket(pmix_peer_t *peer);
 PMIX_EXPORT pmix_status_t pmix_ptl_base_client_handshake(pmix_peer_t *peer, pmix_status_t reply);
 PMIX_EXPORT pmix_status_t pmix_ptl_base_tool_handshake(pmix_peer_t *peer, pmix_status_t rp);
-PMIX_EXPORT char **pmix_ptl_base_split_and_resolve(char **orig_str, char *name);
+PMIX_EXPORT char **pmix_ptl_base_split_and_resolve(const char *orig_str,
+                                                   const char *name);
 PMIX_EXPORT pmix_status_t pmix_ptl_base_connect_to_peer(struct pmix_peer_t *pr, pmix_info_t *info,
                                                         size_t ninfo);
 PMIX_EXPORT pmix_status_t pmix_ptl_base_set_peer(pmix_peer_t *peer, char *evar);

@@ -4,7 +4,7 @@
  *                         All rights reserved.
  * Copyright (c) 2015-2018 Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -14,7 +14,7 @@
  */
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "test_common.h"
 #include <ctype.h>
@@ -630,7 +630,7 @@ int get_all_ranks_from_namespace(test_params params, char *nspace, pmix_proc_t *
         *nranks = params.ns_size;
         PMIX_PROC_CREATE(*ranks, params.ns_size);
         for (j = 0; j < (size_t) params.ns_size; j++) {
-            (void) strncpy((*ranks)[j].nspace, nspace, PMIX_MAX_NSLEN);
+            pmix_strncpy((*ranks)[j].nspace, nspace, PMIX_MAX_NSLEN);
             (*ranks)[j].rank = j;
         }
     } else {
@@ -649,7 +649,7 @@ int get_all_ranks_from_namespace(test_params params, char *nspace, pmix_proc_t *
             *nranks = num_ranks;
             PMIX_PROC_CREATE(*ranks, num_ranks);
             for (j = 0; j < num_ranks; j++) {
-                (void) strncpy((*ranks)[j].nspace, nspace, PMIX_MAX_NSLEN);
+                pmix_strncpy((*ranks)[j].nspace, nspace, PMIX_MAX_NSLEN);
                 (*ranks)[j].rank = j;
             }
         } else {

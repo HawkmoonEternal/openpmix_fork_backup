@@ -16,7 +16,7 @@
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015      Mellanox Technologies, Inc.  All rights reserved.
  * Copyright (c) 2019      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -33,44 +33,7 @@
 #include <unistd.h>
 
 #include <pmix.h>
-
-typedef struct {
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
-    volatile bool active;
-    pmix_status_t status;
-} mylock_t;
-
-#define DEBUG_CONSTRUCT_LOCK(l)                \
-    do {                                       \
-        pthread_mutex_init(&(l)->mutex, NULL); \
-        pthread_cond_init(&(l)->cond, NULL);   \
-        (l)->active = true;                    \
-        (l)->status = PMIX_SUCCESS;            \
-    } while (0)
-
-#define DEBUG_DESTRUCT_LOCK(l)              \
-    do {                                    \
-        pthread_mutex_destroy(&(l)->mutex); \
-        pthread_cond_destroy(&(l)->cond);   \
-    } while (0)
-
-#define DEBUG_WAIT_THREAD(lck)                              \
-    do {                                                    \
-        pthread_mutex_lock(&(lck)->mutex);                  \
-        while ((lck)->active) {                             \
-            pthread_cond_wait(&(lck)->cond, &(lck)->mutex); \
-        }                                                   \
-        pthread_mutex_unlock(&(lck)->mutex);                \
-    } while (0)
-
-#define DEBUG_WAKEUP_THREAD(lck)              \
-    do {                                      \
-        pthread_mutex_lock(&(lck)->mutex);    \
-        (lck)->active = false;                \
-        pthread_cond_broadcast(&(lck)->cond); \
-        pthread_mutex_unlock(&(lck)->mutex);  \
-    } while (0)
+#include "examples.h"
 
 static pmix_proc_t myproc;
 
@@ -79,6 +42,10 @@ static void notification_fn(size_t evhdlr_registration_id, pmix_status_t status,
                             pmix_info_t results[], size_t nresults,
                             pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
+    EXAMPLES_HIDE_UNUSED_PARAMS(evhdlr_registration_id, source,
+                                info, ninfo, results, nresults,
+                                cbfunc, cbdata);
+
     fprintf(stderr, "Client %s:%d NOTIFIED with status %d\n", myproc.nspace, myproc.rank, status);
 }
 
@@ -113,6 +80,8 @@ int main(int argc, char **argv)
     pmix_info_t *results, info;
     size_t nresults, cid;
 
+    EXAMPLES_HIDE_UNUSED_PARAMS(argc, argv);
+
     /* init us */
     if (PMIX_SUCCESS != (rc = PMIx_Init(&myproc, NULL, 0))) {
         fprintf(stderr, "Client ns %s rank %d: PMIx_Init failed: %s\n", myproc.nspace, myproc.rank,
@@ -124,9 +93,9 @@ int main(int argc, char **argv)
     PMIX_PROC_CONSTRUCT(&proc);
     PMIX_LOAD_PROCID(&proc, myproc.nspace, PMIX_RANK_WILDCARD);
 
-    /* get our universe size */
-    if (PMIX_SUCCESS != (rc = PMIx_Get(&proc, PMIX_UNIV_SIZE, NULL, 0, &val))) {
-        fprintf(stderr, "Client ns %s rank %d: PMIx_Get universe size failed: %s\n", myproc.nspace,
+    /* get our job size */
+    if (PMIX_SUCCESS != (rc = PMIx_Get(&proc, PMIX_JOB_SIZE, NULL, 0, &val))) {
+        fprintf(stderr, "Client ns %s rank %d: PMIx_Get job size failed: %s\n", myproc.nspace,
                 myproc.rank, PMIx_Error_string(rc));
         goto done;
     }
@@ -179,8 +148,8 @@ int main(int argc, char **argv)
         if (NULL != results) {
             cid = 0;
             PMIX_VALUE_GET_NUMBER(rc, &results[0].value, cid, size_t);
-            fprintf(stderr, "%d Group construct complete with status %s KEY %s CID %d\n",
-                    myproc.rank, PMIx_Error_string(rc), results[0].key, (int) cid);
+            fprintf(stderr, "%d Group construct complete with status %s KEY %s CID %lu\n",
+                    myproc.rank, PMIx_Error_string(rc), results[0].key, (unsigned long) cid);
         } else {
             fprintf(stderr, "%d Group construct complete, but no CID returned\n", myproc.rank);
         }

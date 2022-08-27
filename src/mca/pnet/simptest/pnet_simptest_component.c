@@ -13,7 +13,7 @@
  * Copyright (c) 2015      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -28,11 +28,11 @@
  */
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "pnet_simptest.h"
 #include "src/mca/pnet/pnet.h"
-#include "src/util/argv.h"
+#include "src/util/pmix_argv.h"
 
 static pmix_status_t component_open(void);
 static pmix_status_t component_close(void);
@@ -43,40 +43,34 @@ static pmix_status_t component_register(void);
  * Instantiate the public struct with all of our public information
  * and pointers to our public functions in it
  */
-pmix_pnet_simptest_component_t mca_pnet_simptest_component = {
+pmix_pnet_simptest_component_t pmix_mca_pnet_simptest_component = {
     .super = {
-        .base = {
-            PMIX_PNET_BASE_VERSION_1_0_0,
+        PMIX_PNET_BASE_VERSION_1_0_0,
 
-            /* Component name and version */
-            .pmix_mca_component_name = "simptest",
-            PMIX_MCA_BASE_MAKE_VERSION(component,
-                                       PMIX_MAJOR_VERSION,
-                                       PMIX_MINOR_VERSION,
-                                       PMIX_RELEASE_VERSION),
+        /* Component name and version */
+        .pmix_mca_component_name = "simptest",
+        PMIX_MCA_BASE_MAKE_VERSION(component,
+                                   PMIX_MAJOR_VERSION,
+                                   PMIX_MINOR_VERSION,
+                                   PMIX_RELEASE_VERSION),
 
-            /* Component open and close functions */
-            .pmix_mca_open_component = component_open,
-            .pmix_mca_close_component = component_close,
-            .pmix_mca_query_component = component_query,
-            .pmix_mca_register_component_params = component_register
-        },
-        .data = {
-            /* The component is checkpoint ready */
-            PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT
-        }
+        /* Component open and close functions */
+        .pmix_mca_open_component = component_open,
+        .pmix_mca_close_component = component_close,
+        .pmix_mca_query_component = component_query,
+        .pmix_mca_register_component_params = component_register
     },
     .configfile = NULL
 };
 
 static pmix_status_t component_register(void)
 {
-    pmix_mca_base_component_t *component = &mca_pnet_simptest_component.super.base;
+    pmix_mca_base_component_t *component = &pmix_mca_pnet_simptest_component.super;
 
     (void) pmix_mca_base_component_var_register(
         component, "config_file", "Path of file containing network coordinate configuration",
-        PMIX_MCA_BASE_VAR_TYPE_STRING, NULL, 0, 0, PMIX_INFO_LVL_2,
-        PMIX_MCA_BASE_VAR_SCOPE_READONLY, &mca_pnet_simptest_component.configfile);
+        PMIX_MCA_BASE_VAR_TYPE_STRING,
+        &pmix_mca_pnet_simptest_component.configfile);
     return PMIX_SUCCESS;
 }
 
@@ -85,7 +79,7 @@ static pmix_status_t component_open(void)
     int index;
     const pmix_mca_base_var_storage_t *value = NULL;
 
-    if (NULL == mca_pnet_simptest_component.configfile
+    if (NULL == pmix_mca_pnet_simptest_component.configfile
         || !PMIX_PROC_IS_SERVER(&pmix_globals.mypeer->proc_type)) {
         /* nothing we can do without a description
          * of the fabric topology */

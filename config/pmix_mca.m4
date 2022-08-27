@@ -12,7 +12,7 @@ dnl Copyright (c) 2004-2005 The Regents of the University of California.
 dnl                         All rights reserved.
 dnl Copyright (c) 2010-2015 Cisco Systems, Inc.  All rights reserved.
 dnl Copyright (c) 2013-2019 Intel, Inc.  All rights reserved.
-dnl Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+dnl Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
 dnl Copyright (c) 2018-2021 Amazon.com, Inc. or its affiliates.
 dnl                         All Rights reserved.
 dnl $COPYRIGHT$
@@ -55,7 +55,7 @@ AC_DEFUN([PMIX_MCA],[
     AC_ARG_ENABLE([mca-no-build],
         [AS_HELP_STRING([--enable-mca-no-build=LIST],
                         [Comma-separated list of <type>-<component> pairs
-                         that will not be built.  Example: "--enable-mca-no-build=maffinity,btl-portals" will disable building all maffinity components and the "portals" btl components.])])
+                         that will not be built.  Example: "--enable-mca-no-build=pgpu,pcompress-zlib" will disable building all pgpu components and the "zlib" pcompress components.])])
     AC_ARG_ENABLE(mca-dso,
         AS_HELP_STRING([--enable-mca-dso=LIST],
                        [Comma-separated list of types and/or
@@ -63,7 +63,7 @@ AC_DEFUN([PMIX_MCA],[
                         run-time loadable components (as opposed to
                         statically linked in), if supported on this
                         platform.]),
-                        [], [enable_mca_dso=pcompress-zlib,ploc-hwloc,pnet-opa,pnet-sshot,prm])
+                        [], [enable_mca_dso=pcompress-zlib,pnet-sshot,prm])
     AC_ARG_ENABLE(mca-static,
         AS_HELP_STRING([--enable-mca-static=LIST],
                        [Comma-separated list of types and/or
@@ -395,7 +395,7 @@ extern "C" {
 
 `cat $outfile.extern`
 
-const pmix_mca_base_component_t *mca_$1_base_static_components[[]] = {
+const pmix_mca_base_component_t *pmix_mca_$1_base_static_components[[]] = {
 `cat $outfile.struct`
   NULL
 };
@@ -632,6 +632,26 @@ AC_DEFUN([MCA_COMPONENT_COMPILE_MODE],[
 ])
 
 
+# PMIX_MCA_STRIP_LAFILES(output_variable(1),
+#                        input_list(2)
+#--------------------------------------------
+# Helper function to MCA_PROCESS_COMPONENT which will strip
+# any .la file entries in the LIBS list.  Used for when copying
+# a component's LIBS into WRAPPER_LIBS.
+AC_DEFUN([PMIX_MCA_STRIP_LAFILES], [
+    PMIX_VAR_SCOPE_PUSH([pmix_tmp])
+
+    $1=
+    for arg in $2; do
+	pmix_tmp=`echo $arg | awk '{print substr([$][1], length([$][1])-2) }'`
+        AS_IF([test "$pmix_tmp" != ".la"],
+              [PMIX_APPEND([$1], [$arg])])
+    done
+
+    PMIX_VAR_SCOPE_POP
+])
+
+
 # MCA_PROCESS_COMPONENT(framework_name (1), component_name (2),
 #                        all_components_variable (3), static_components_variable (4)
 #                        dso_components_variable (5), static_ltlibs_variable (6),
@@ -662,16 +682,71 @@ AC_DEFUN([MCA_PROCESS_COMPONENT],[
         else
             # Other frameworks do not have to obey the
             # $FRAMEWORK_LIB_PREFIX prefix.
-            $6="mca/$1/$2/libmca_$1_$2.la $$6"
+            $6="mca/$1/$2/libpmix_mca_$1_$2.la $$6"
         fi
-        echo "extern const pmix_mca_base_component_t mca_$1_$2_component;" >> $outfile.extern
-        echo "  &mca_$1_$2_component, " >> $outfile.struct
+        echo "extern const pmix_mca_base_component_t pmix_mca_$1_$2_component;" >> $outfile.extern
+        echo "  &pmix_mca_$1_$2_component, " >> $outfile.struct
         $4="$$4 $2"
     fi
 
     # Output pretty results
     AC_MSG_CHECKING([if MCA component $1:$2 can compile])
     AC_MSG_RESULT([yes])
+
+    # If a component is building static (ie, sucked into the parent
+    # library), we need to provide LDFLAGS and LIBS and pkg-config
+    # module name configuration to the wrapper compiler, so that it
+    # can provide them for the final link of the application.
+    # Components can explicitly set
+    # <framework>_<component>_WRAPPER_EXTRA_<flag> for LDFLAGS, LIBS,
+    # or PC_MODULES, for cases where the component wants to explicitly
+    # manage which flags are passed to the wrapper compiler.  If the
+    # <framework>_<component>_WRAPPER_EXTRA_<flag> variable is not
+    # set, then it is assumed that the component wishes all LDFLAGS,
+    # LIBS, and PC_MODULES to be provided as wrapper flags.
+    AS_IF([test "$7" = "static"],
+          [AS_VAR_SET_IF([$1_$2_WRAPPER_EXTRA_LDFLAGS],
+              [AS_VAR_COPY([tmp_flags], [$1_$2_WRAPPER_EXTRA_LDFLAGS])],
+              [AS_VAR_COPY([tmp_flags], [$1_$2_LDFLAGS])])
+           PMIX_FLAGS_APPEND_UNIQ([pmix_mca_wrapper_extra_ldflags], [$tmp_flags])
+
+           AS_VAR_SET_IF([$1_$2_WRAPPER_EXTRA_STATIC_LDFLAGS],
+              [AS_VAR_COPY([tmp_flags], [$1_$2_WRAPPER_EXTRA_STATIC_LDFLAGS])],
+              [AS_VAR_COPY([tmp_flags], [$1_$2_STATIC_LDFLAGS])])
+           PMIX_FLAGS_APPEND_UNIQ([pmix_mca_wrapper_extra_static_ldflags], [$tmp_flags])
+
+           AS_VAR_SET_IF([$1_$2_WRAPPER_EXTRA_PC_MODULES],
+              [AS_VAR_COPY([tmp_flags], [$1_$2_WRAPPER_EXTRA_PC_MODULES])],
+              [AS_VAR_COPY([tmp_flags], [$1_$2_PC_MODULES])])
+           PMIX_APPEND_UNIQ([pmix_mca_wrapper_extra_pc_modules], [$tmp_flags])
+
+           AS_VAR_SET_IF([$1_$2_WRAPPER_EXTRA_LIBS],
+              [AS_VAR_COPY([tmp_flags], [$1_$1_WRAPPER_EXTRA_LIBS])],
+              [AS_VAR_COPY([tmp_all_flags], [$1_$2_LIBS])
+               PMIX_MCA_STRIP_LAFILES([tmp_flags], [$tmp_all_flags])])
+           PMIX_FLAGS_APPEND_MOVE([pmix_mca_wrapper_extra_libs], [$tmp_flags])
+
+           AS_VAR_SET_IF([$1_$2_WRAPPER_EXTRA_STATIC_LIBS],
+              [AS_VAR_COPY([tmp_flags], [$1_$1_WRAPPER_EXTRA_STATIC_LIBS])],
+              [AS_VAR_COPY([tmp_all_flags], [$1_$2_STATIC_LIBS])
+               PMIX_MCA_STRIP_LAFILES([tmp_flags], [$tmp_all_flags])])
+           echo "Adding static libs $tmp_flags"
+           PMIX_FLAGS_APPEND_MOVE([pmix_mca_wrapper_extra_static_libs], [$tmp_flags])])
+
+    # WRAPPER_EXTRA_CPPFLAGS are only needed for STOP_AT_FIRST
+    # components, as all other components are not allowed to leak
+    # headers or compile-time flags into the top-level library or
+    # wrapper compilers.  If needed, copy over WRAPPER_EXTRA_CPPFLAGS.
+    # Since a configure script component can never be used in a
+    # STOP_AT_FIRST framework, we don't have to implement the else
+    # clause in the literal check.
+    AS_LITERAL_IF([$2],
+        [AS_IF([test "$$1_$2_WRAPPER_EXTRA_CPPFLAGS" != ""],
+           [m4_if(PMIX_EVAL_ARG([MCA_$1_CONFIGURE_MODE]), [STOP_AT_FIRST], [stop_at_first=1], [stop_at_first=0])
+            AS_IF([test "$8" = "static" && test "$stop_at_first" = "1"],
+              [AS_IF([test "$with_devel_headers" = "yes"],
+                     [PMIX_FLAGS_APPEND_UNIQ([pmix_mca_wrapper_extra_cppflags], [$$2_$3_WRAPPER_EXTRA_CPPFLAGS])])],
+              [AC_MSG_WARN([ignoring $1_$2_WRAPPER_EXTRA_CPPFLAGS ($$1_$2_WRAPPER_EXTRA_CPPFLAGS): component conditions not met])])])])
 ])
 
 

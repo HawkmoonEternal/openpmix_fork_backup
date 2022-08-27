@@ -8,7 +8,7 @@
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
  * Copyright (c) 2019      Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -20,10 +20,10 @@
 
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/include/pmix_socket_errno.h"
 #include "src/include/pmix_stdint.h"
-#include "src/include/types.h"
+#include "src/include/pmix_types.h"
 
 #include "src/include/pmix_globals.h"
 
@@ -38,7 +38,7 @@
 #    include <sys/types.h>
 #endif
 #include <ctype.h>
-#include PMIX_EVENT_HEADER
+#include <event.h>
 #if HAVE_SYS_STAT_H
 #    include <sys/stat.h>
 #endif /* HAVE_SYS_STAT_H */
@@ -46,15 +46,17 @@
 #    include <dirent.h>
 #endif /* HAVE_DIRENT_H */
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "src/class/pmix_hash_table.h"
 #include "src/class/pmix_list.h"
 #include "src/mca/bfrops/bfrops_types.h"
-#include "src/threads/threads.h"
-#include "src/util/argv.h"
-#include "src/util/os_path.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_os_path.h"
 
+const char* PMIX_PROXY_VERSION = PMIX_PROXY_VERSION_STRING;
+const char* PMIX_PROXY_BUGREPORT = PMIX_PROXY_BUGREPORT_STRING;
 
 static void dirpath_destroy(char *path, pmix_cleanup_dir_t *cd,
                             pmix_epilog_t *epi);
@@ -64,11 +66,42 @@ PMIX_EXPORT pmix_lock_t pmix_global_lock = {.mutex = PMIX_MUTEX_STATIC_INIT,
                                             .cond = PMIX_CONDITION_STATIC_INIT,
                                             .active = false};
 
-PMIX_EXPORT PMIX_CLASS_INSTANCE(pmix_namelist_t, pmix_list_item_t, NULL, NULL);
+static void nsenvcon(pmix_nspace_env_cache_t *p)
+{
+    PMIX_CONSTRUCT(&p->envars, pmix_list_t);
+}
+static void nsenvdes(pmix_nspace_env_cache_t *p)
+{
+    PMIX_LIST_DESTRUCT(&p->envars);
+}
+PMIX_EXPORT PMIX_CLASS_INSTANCE(pmix_nspace_env_cache_t,
+                                pmix_list_item_t,
+                                nsenvcon, nsenvdes);
 
-PMIX_EXPORT PMIX_CLASS_INSTANCE(pmix_proclist_t, pmix_list_item_t, NULL, NULL);
+static void encon(pmix_envar_list_item_t *p)
+{
+    PMIX_ENVAR_CONSTRUCT(&p->envar);
+}
+static void endes(pmix_envar_list_item_t *p)
+{
+    PMIX_ENVAR_DESTRUCT(&p->envar);
+}
+PMIX_EXPORT PMIX_CLASS_INSTANCE(pmix_envar_list_item_t,
+                                pmix_list_item_t,
+                                encon, endes);
 
-PMIX_EXPORT PMIX_CLASS_INSTANCE(pmix_topo_obj_t, pmix_object_t, NULL, NULL);
+
+PMIX_EXPORT PMIX_CLASS_INSTANCE(pmix_namelist_t,
+                                pmix_list_item_t,
+                                NULL, NULL);
+
+PMIX_EXPORT PMIX_CLASS_INSTANCE(pmix_proclist_t,
+                                pmix_list_item_t,
+                                NULL, NULL);
+
+PMIX_EXPORT PMIX_CLASS_INSTANCE(pmix_topo_obj_t,
+                                pmix_object_t,
+                                NULL, NULL);
 
 static void cfcon(pmix_cleanup_file_t *p)
 {
@@ -151,9 +184,6 @@ static void ncdcon(pmix_nspace_caddy_t *p)
 static void ncddes(pmix_nspace_caddy_t *p)
 {
     if (NULL != p->ns) {
-        if (NULL != p->ns->jobbkt) {
-            PMIX_RELEASE(p->ns->jobbkt);
-        }
         PMIX_RELEASE(p->ns);
     }
 }
@@ -265,6 +295,7 @@ static void scon(pmix_shift_caddy_t *p)
     p->codes = NULL;
     p->ncodes = 0;
     p->peer = NULL;
+    p->proc = NULL;
     p->pname.nspace = NULL;
     p->pname.rank = PMIX_RANK_UNDEF;
     p->data = NULL;
@@ -306,8 +337,20 @@ static void lgcon(pmix_get_logic_t *p)
     p->pntrval = false;
     p->stval = false;
     p->optional = false;
+    p->immediate = false;
+    p->add_immediate = false;
     p->refresh_cache = false;
     p->scope = PMIX_SCOPE_UNDEF;
+    p->sessioninfo = false;
+    p->sessiondirective = false;
+    p->sessionid = UINT32_MAX;
+    p->nodeinfo = false;
+    p->nodedirective = false;
+    p->hostname = NULL;
+    p->nodeid = UINT32_MAX;
+    p->appinfo = false;
+    p->appdirective = false;
+    p->appnum = UINT32_MAX;
 }
 PMIX_EXPORT PMIX_CLASS_INSTANCE(pmix_get_logic_t, pmix_object_t, lgcon, NULL);
 
@@ -460,7 +503,7 @@ void pmix_execute_epilog(pmix_epilog_t *epi)
          * some minimum level of protection */
         tmp = pmix_argv_split(cf->path, ',');
         for (n = 0; NULL != tmp[n]; n++) {
-            /* coverity[toctou] */
+            /* coverity[TOCTOU] */
             rc = stat(tmp[n], &statbuf);
             if (0 != rc) {
                 pmix_output_verbose(10, pmix_globals.debug_output, "File %s failed to stat: %d",
@@ -493,7 +536,7 @@ void pmix_execute_epilog(pmix_epilog_t *epi)
          * some minimum level of protection */
         tmp = pmix_argv_split(cd->path, ',');
         for (n = 0; NULL != tmp[n]; n++) {
-            /* coverity[toctou] */
+            /* coverity[TOCTOU] */
             rc = stat(tmp[n], &statbuf);
             if (0 != rc) {
                 pmix_output_verbose(10, pmix_globals.debug_output,
@@ -577,7 +620,7 @@ static void dirpath_destroy(char *path, pmix_cleanup_dir_t *cd, pmix_epilog_t *e
         /* Check to see if it is a directory */
         is_dir = false;
 
-        /* coverity[toctou] */
+        /* coverity[TOCTOU] */
         rc = stat(filenm, &buf);
         if (0 > rc) {
             /* Handle a race condition. filenm might have been deleted by an
@@ -599,7 +642,7 @@ static void dirpath_destroy(char *path, pmix_cleanup_dir_t *cd, pmix_epilog_t *e
         }
 
         /*
-         * If not recursively decending, then if we find a directory then fail
+         * If not recursively descending, then if we find a directory then fail
          * since we were not told to remove it.
          */
         if (is_dir && !cd->recurse) {
@@ -681,3 +724,13 @@ pmix_event_t *pmix_event_new(pmix_event_base_t *b, int fd, short fg, event_callb
 
     return ev;
 }
+
+#if PMIX_PICKY_COMPILERS
+void pmix_hide_unused_params(int x, ...)
+{
+    va_list ap;
+
+    va_start(ap, x);
+    va_end(ap);
+}
+#endif

@@ -16,7 +16,7 @@
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2019      Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -32,213 +32,211 @@
 #include "src/client/pmix_client_ops.h"
 #include "src/include/pmix_globals.h"
 #include "src/mca/bfrops/base/base.h"
-#include "src/util/error.h"
+#include "src/util/pmix_error.h"
 
 static pmix_status_t init(void);
 static void finalize(void);
-static pmix_status_t register_type(const char *name, pmix_data_type_t type,
-                                   pmix_bfrop_pack_fn_t pack, pmix_bfrop_unpack_fn_t unpack,
-                                   pmix_bfrop_copy_fn_t copy, pmix_bfrop_print_fn_t print);
 static const char *data_type_string(pmix_data_type_t type);
 
-pmix_bfrops_module_t pmix_bfrops_pmix20_module = {.version = "v20",
-                                                  .init = init,
-                                                  .finalize = finalize,
-                                                  .pack = pmix20_bfrop_pack,
-                                                  .unpack = pmix20_bfrop_unpack,
-                                                  .copy = pmix20_bfrop_copy,
-                                                  .print = pmix20_bfrop_print,
-                                                  .copy_payload = pmix20_bfrop_copy_payload,
-                                                  .value_xfer = pmix20_bfrop_value_xfer,
-                                                  .value_load = pmix20_bfrop_value_load,
-                                                  .value_unload = pmix20_bfrop_value_unload,
-                                                  .value_cmp = pmix20_bfrop_value_cmp,
-                                                  .register_type = register_type,
-                                                  .data_type_string = data_type_string};
+pmix_bfrops_module_t pmix_bfrops_pmix20_module = {
+    .version = "v20",
+    .init = init,
+    .finalize = finalize,
+    .pack = pmix20_bfrop_pack,
+    .unpack = pmix20_bfrop_unpack,
+    .copy = pmix20_bfrop_copy,
+    .print = pmix20_bfrop_print,
+    .copy_payload = pmix20_bfrop_copy_payload,
+    .value_xfer = pmix20_bfrop_value_xfer,
+    .value_load = pmix20_bfrop_value_load,
+    .value_unload = pmix20_bfrop_value_unload,
+    .value_cmp = pmix20_bfrop_value_cmp,
+    .data_type_string = data_type_string
+};
 
 static pmix_status_t init(void)
 {
     /* some standard types don't require anything special */
     PMIX_REGISTER_TYPE("PMIX_BOOL", PMIX_BOOL, pmix20_bfrop_pack_bool, pmix20_bfrop_unpack_bool,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_bool,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_BYTE", PMIX_BYTE, pmix20_bfrop_pack_byte, pmix20_bfrop_unpack_byte,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_byte,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_STRING", PMIX_STRING, pmix20_bfrop_pack_string,
                        pmix20_bfrop_unpack_string, pmix20_bfrop_copy_string,
-                       pmix20_bfrop_print_string, &mca_bfrops_v20_component.types);
+                       pmix20_bfrop_print_string, &pmix_mca_bfrops_v20_component.types);
 
     /* Register the rest of the standard generic types to point to internal functions */
     PMIX_REGISTER_TYPE("PMIX_SIZE", PMIX_SIZE, pmix20_bfrop_pack_sizet, pmix20_bfrop_unpack_sizet,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_size,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_PID", PMIX_PID, pmix20_bfrop_pack_pid, pmix20_bfrop_unpack_pid,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_pid,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_INT", PMIX_INT, pmix20_bfrop_pack_int, pmix20_bfrop_unpack_int,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_int,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     /* Register all the standard fixed types to point to base functions */
     PMIX_REGISTER_TYPE("PMIX_INT8", PMIX_INT8, pmix20_bfrop_pack_byte, pmix20_bfrop_unpack_byte,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_int8,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_INT16", PMIX_INT16, pmix20_bfrop_pack_int16, pmix20_bfrop_unpack_int16,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_int16,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_INT32", PMIX_INT32, pmix20_bfrop_pack_int32, pmix20_bfrop_unpack_int32,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_int32,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_INT64", PMIX_INT64, pmix20_bfrop_pack_int64, pmix20_bfrop_unpack_int64,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_int64,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_UINT", PMIX_UINT, pmix20_bfrop_pack_int, pmix20_bfrop_unpack_int,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_uint,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_UINT8", PMIX_UINT8, pmix20_bfrop_pack_byte, pmix20_bfrop_unpack_byte,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_uint8,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_UINT16", PMIX_UINT16, pmix20_bfrop_pack_int16,
                        pmix20_bfrop_unpack_int16, pmix20_bfrop_std_copy, pmix20_bfrop_print_uint16,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_UINT32", PMIX_UINT32, pmix20_bfrop_pack_int32,
                        pmix20_bfrop_unpack_int32, pmix20_bfrop_std_copy, pmix20_bfrop_print_uint32,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_UINT64", PMIX_UINT64, pmix20_bfrop_pack_int64,
                        pmix20_bfrop_unpack_int64, pmix20_bfrop_std_copy, pmix20_bfrop_print_uint64,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_FLOAT", PMIX_FLOAT, pmix20_bfrop_pack_float, pmix20_bfrop_unpack_float,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_float,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_DOUBLE", PMIX_DOUBLE, pmix20_bfrop_pack_double,
                        pmix20_bfrop_unpack_double, pmix20_bfrop_std_copy, pmix20_bfrop_print_double,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_TIMEVAL", PMIX_TIMEVAL, pmix20_bfrop_pack_timeval,
                        pmix20_bfrop_unpack_timeval, pmix20_bfrop_std_copy,
-                       pmix20_bfrop_print_timeval, &mca_bfrops_v20_component.types);
+                       pmix20_bfrop_print_timeval, &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_TIME", PMIX_TIME, pmix20_bfrop_pack_time, pmix20_bfrop_unpack_time,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_time,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_STATUS", PMIX_STATUS, pmix20_bfrop_pack_status,
                        pmix20_bfrop_unpack_status, pmix20_bfrop_std_copy, pmix20_bfrop_print_status,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_VALUE", PMIX_VALUE, pmix20_bfrop_pack_value, pmix20_bfrop_unpack_value,
                        pmix20_bfrop_copy_value, pmix20_bfrop_print_value,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_PROC", PMIX_PROC, pmix20_bfrop_pack_proc, pmix20_bfrop_unpack_proc,
                        pmix20_bfrop_copy_proc, pmix20_bfrop_print_proc,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_APP", PMIX_APP, pmix20_bfrop_pack_app, pmix20_bfrop_unpack_app,
                        pmix20_bfrop_copy_app, pmix20_bfrop_print_app,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_INFO", PMIX_INFO, pmix20_bfrop_pack_info, pmix20_bfrop_unpack_info,
                        pmix20_bfrop_copy_info, pmix20_bfrop_print_info,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_PDATA", PMIX_PDATA, pmix20_bfrop_pack_pdata, pmix20_bfrop_unpack_pdata,
                        pmix20_bfrop_copy_pdata, pmix20_bfrop_print_pdata,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_BUFFER", PMIX_BUFFER, pmix20_bfrop_pack_buf, pmix20_bfrop_unpack_buf,
                        pmix20_bfrop_copy_buf, pmix20_bfrop_print_buf,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_BYTE_OBJECT", PMIX_BYTE_OBJECT, pmix20_bfrop_pack_bo,
                        pmix20_bfrop_unpack_bo, pmix20_bfrop_copy_bo, pmix20_bfrop_print_bo,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_KVAL", PMIX_KVAL, pmix20_bfrop_pack_kval, pmix20_bfrop_unpack_kval,
                        pmix20_bfrop_copy_kval, pmix20_bfrop_print_kval,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_MODEX", PMIX_MODEX, pmix20_bfrop_pack_modex, pmix20_bfrop_unpack_modex,
                        pmix20_bfrop_copy_modex, pmix20_bfrop_print_modex,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     /* these are fixed-sized values and can be done by base */
     PMIX_REGISTER_TYPE("PMIX_PERSIST", PMIX_PERSIST, pmix20_bfrop_pack_persist,
                        pmix20_bfrop_unpack_persist, pmix20_bfrop_std_copy,
-                       pmix20_bfrop_print_persist, &mca_bfrops_v20_component.types);
+                       pmix20_bfrop_print_persist, &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_POINTER", PMIX_POINTER, pmix20_bfrop_pack_ptr, pmix20_bfrop_unpack_ptr,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_ptr,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_SCOPE", PMIX_SCOPE, pmix20_bfrop_pack_scope, pmix20_bfrop_unpack_scope,
-                       pmix20_bfrop_std_copy, pmix20_bfrop_std_copy,
-                       &mca_bfrops_v20_component.types);
+                       pmix20_bfrop_std_copy, pmix20_bfrop_print_scope,
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_DATA_RANGE", PMIX_DATA_RANGE, pmix20_bfrop_pack_range,
                        pmix20_bfrop_unpack_range, pmix20_bfrop_std_copy, pmix20_bfrop_print_ptr,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_COMMAND", PMIX_COMMAND, pmix20_bfrop_pack_cmd, pmix20_bfrop_unpack_cmd,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_cmd,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_INFO_DIRECTIVES", PMIX_INFO_DIRECTIVES, pmix20_bfrop_pack_infodirs,
                        pmix20_bfrop_unpack_infodirs, pmix20_bfrop_std_copy,
-                       pmix20_bfrop_print_infodirs, &mca_bfrops_v20_component.types);
+                       pmix20_bfrop_print_infodirs, &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_DATA_TYPE", PMIX_DATA_TYPE, pmix20_bfrop_pack_datatype,
                        pmix20_bfrop_unpack_datatype, pmix20_bfrop_std_copy,
-                       pmix_bfrops_base_print_datatype, &mca_bfrops_v20_component.types);
+                       pmix_bfrops_base_print_datatype, &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_PROC_STATE", PMIX_PROC_STATE, pmix20_bfrop_pack_pstate,
                        pmix20_bfrop_unpack_pstate, pmix20_bfrop_std_copy, pmix20_bfrop_print_pstate,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_PROC_INFO", PMIX_PROC_INFO, pmix20_bfrop_pack_pinfo,
                        pmix20_bfrop_unpack_pinfo, pmix20_bfrop_copy_pinfo, pmix20_bfrop_print_pinfo,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_DATA_ARRAY", PMIX_DATA_ARRAY, pmix20_bfrop_pack_darray,
                        pmix20_bfrop_unpack_darray, pmix20_bfrop_copy_darray,
-                       pmix20_bfrop_print_darray, &mca_bfrops_v20_component.types);
+                       pmix20_bfrop_print_darray, &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_PROC_RANK", PMIX_PROC_RANK, pmix20_bfrop_pack_rank,
                        pmix20_bfrop_unpack_rank, pmix20_bfrop_std_copy, pmix20_bfrop_print_rank,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_QUERY", PMIX_QUERY, pmix20_bfrop_pack_query, pmix20_bfrop_unpack_query,
                        pmix20_bfrop_copy_query, pmix20_bfrop_print_query,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_COMPRESSED_STRING", PMIX_COMPRESSED_STRING, pmix20_bfrop_pack_bo,
                        pmix20_bfrop_unpack_bo, pmix20_bfrop_copy_bo, pmix20_bfrop_print_bo,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     PMIX_REGISTER_TYPE("PMIX_ALLOC_DIRECTIVE", PMIX_ALLOC_DIRECTIVE,
                        pmix20_bfrop_pack_alloc_directive, pmix20_bfrop_unpack_alloc_directive,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_alloc_directive,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     /**** DEPRECATED ****/
     PMIX_REGISTER_TYPE("PMIX_INFO_ARRAY", PMIX_INFO_ARRAY, pmix20_bfrop_pack_array,
                        pmix20_bfrop_unpack_array, pmix20_bfrop_copy_array, pmix20_bfrop_print_array,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
     /********************/
 
     return PMIX_SUCCESS;
@@ -249,31 +247,22 @@ static void finalize(void)
     int n;
     pmix_bfrop_type_info_t *info;
 
-    for (n = 0; n < mca_bfrops_v20_component.types.size; n++) {
+    for (n = 0; n < pmix_mca_bfrops_v20_component.types.size; n++) {
         if (NULL
             != (info = (pmix_bfrop_type_info_t *)
-                    pmix_pointer_array_get_item(&mca_bfrops_v20_component.types, n))) {
+                    pmix_pointer_array_get_item(&pmix_mca_bfrops_v20_component.types, n))) {
             PMIX_RELEASE(info);
-            pmix_pointer_array_set_item(&mca_bfrops_v20_component.types, n, NULL);
+            pmix_pointer_array_set_item(&pmix_mca_bfrops_v20_component.types, n, NULL);
         }
     }
-}
-
-static pmix_status_t register_type(const char *name, pmix_data_type_t type,
-                                   pmix_bfrop_pack_fn_t pack, pmix_bfrop_unpack_fn_t unpack,
-                                   pmix_bfrop_copy_fn_t copy, pmix_bfrop_print_fn_t print)
-{
-    PMIX_REGISTER_TYPE(name, type, pack, unpack, copy, print, &mca_bfrops_v20_component.types);
-    return PMIX_SUCCESS;
 }
 
 static const char *data_type_string(pmix_data_type_t type)
 {
     pmix_bfrop_type_info_t *info;
 
-    if (NULL
-        == (info = (pmix_bfrop_type_info_t *)
-                pmix_pointer_array_get_item(&mca_bfrops_v20_component.types, type))) {
+    info = (pmix_bfrop_type_info_t *)pmix_pointer_array_get_item(&pmix_mca_bfrops_v20_component.types, type);
+    if (NULL == info) {
         return NULL;
     }
     return info->odti_name;
@@ -287,14 +276,14 @@ pmix_data_type_t pmix20_v21_to_v20_datatype(pmix_data_type_t v21type)
      * a PMIx v20 compatible client. The data type was redefined
      * in v21, and so we have to do some conversions here */
     switch (v21type) {
-    case PMIX_COMMAND:
-        /* the peer unfortunately didn't separate these out,
-         * but instead set them to PMIX_UINT32 */
-        v20type = PMIX_UINT32;
-        break;
+        case PMIX_COMMAND:
+            /* the peer unfortunately didn't separate these out,
+             * but instead set them to PMIX_UINT32 */
+            v20type = PMIX_UINT32;
+            break;
 
-    default:
-        v20type = v21type;
+        default:
+            v20type = v21type;
     }
     return v20type;
 }

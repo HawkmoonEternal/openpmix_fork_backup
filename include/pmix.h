@@ -38,7 +38,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -130,7 +130,9 @@ PMIX_EXPORT pmix_status_t PMIx_Abort(int status, const char msg[],
  * the information locally until _PMIx_Commit_ is called. The provided scope
  * value is passed to the local PMIx server, which will distribute the data
  * as directed. */
-PMIX_EXPORT pmix_status_t PMIx_Put(pmix_scope_t scope, const char key[], pmix_value_t *val);
+PMIX_EXPORT pmix_status_t PMIx_Put(pmix_scope_t scope,
+                                   const char key[],
+                                   pmix_value_t *val);
 
 
 /* Push all previously _PMIx_Put_ values to the local PMIx server.
@@ -1065,6 +1067,8 @@ PMIX_EXPORT pmix_status_t PMIx_Compute_distances_nb(pmix_topology_t *topo,
 PMIX_EXPORT pmix_status_t PMIx_Load_topology(pmix_topology_t *topo);
 
 
+PMIX_EXPORT void PMIx_Topology_destruct(pmix_topology_t *topo);
+
 /* Get the PU binding bitmap from its string representation
  *
  * cpuset_string - string representation of the binding bitmap
@@ -1082,6 +1086,8 @@ PMIX_EXPORT pmix_status_t PMIx_Parse_cpuset_string(const char *cpuset_string,
 	                                               pmix_cpuset_t *cpuset);
 
 PMIX_EXPORT pmix_status_t PMIx_Get_cpuset(pmix_cpuset_t *cpuset, pmix_bind_envelope_t ref);
+
+PMIX_EXPORT void PMIx_Cpuset_destruct(pmix_cpuset_t *cpuset);
 
 /* Get the relative locality of two local processes given their locality strings.
  *
@@ -1123,15 +1129,21 @@ PMIX_EXPORT const char* PMIx_Proc_state_string(pmix_proc_state_t state);
 PMIX_EXPORT const char* PMIx_Scope_string(pmix_scope_t scope);
 PMIX_EXPORT const char* PMIx_Persistence_string(pmix_persistence_t persist);
 PMIX_EXPORT const char* PMIx_Data_range_string(pmix_data_range_t range);
-PMIX_EXPORT const char* PMIx_Info_directives_string(pmix_info_directives_t directives);
 PMIX_EXPORT const char* PMIx_Data_type_string(pmix_data_type_t type);
 PMIX_EXPORT const char* PMIx_Alloc_directive_string(pmix_alloc_directive_t directive);
 PMIX_EXPORT const char* PMIx_IOF_channel_string(pmix_iof_channel_t channel);
 PMIX_EXPORT const char* PMIx_Job_state_string(pmix_job_state_t state);
-PMIX_EXPORT const char* PMIx_Get_attribute_string(char *attribute);
-PMIX_EXPORT const char* PMIx_Get_attribute_name(char *attrstring);
+PMIX_EXPORT const char* PMIx_Get_attribute_string(const char *attribute);
+PMIX_EXPORT const char* PMIx_Get_attribute_name(const char *attrstring);
 PMIX_EXPORT const char* PMIx_Link_state_string(pmix_link_state_t state);
 PMIX_EXPORT const char* PMIx_Device_type_string(pmix_device_type_t type);
+PMIX_EXPORT const char* PMIx_Value_comparison_string(pmix_value_cmp_t cmp);
+
+/* the following print statements return ALLOCATED strings
+ * that the user must release when done */
+PMIX_EXPORT char* PMIx_Info_string(const pmix_info_t *info);
+PMIX_EXPORT char* PMIx_Value_string(const pmix_value_t *value);
+PMIX_EXPORT char* PMIx_Info_directives_string(pmix_info_directives_t directives);
 
 /* Get the PMIx version string. Note that the provided string is
  * statically defined and must NOT be free'd  */
@@ -1390,7 +1402,7 @@ PMIX_EXPORT pmix_status_t PMIx_Data_copy_payload(pmix_data_buffer_t *dest,
  * @param payload The address of a pmix_byte_object_t into which
  * the buffer is to be unloaded
  *
- * @retval PMIX_SUCCESS The request was succesfully completed.
+ * @retval PMIX_SUCCESS The request was successfully completed.
  *
  * @retval PMIX_ERROR(s) An appropriate error code indicating the
  * problem will be returned. This should be handled appropriately by
@@ -1549,6 +1561,92 @@ PMIX_EXPORT bool PMIx_Data_decompress(const uint8_t *inbytes,
                                       size_t *nbytes);
 
 
+/* We had to put some function definitions into pmix_deprecated.h for
+ * now-deprecated macros that utilize them as there are people who only
+ * included pmix_common.h if they were using macros but not APIs.
+ * However, we really want those APIs here so people will
+ * see them and know they exist. So include them here as well. */
+
+#ifndef PMIx_DEPRECATED_H
+/* Load data into a pmix_value_t structure. The data can be of any
+ * PMIx data type - which means the load can be somewhat complex
+ * to implement (e.g., in the case of a pmix_data_array_t). The
+ * data is COPIED into the value struct
+ */
+PMIX_EXPORT pmix_status_t PMIx_Value_load(pmix_value_t *val,
+                                          const void *data,
+                                          pmix_data_type_t type);
+
+/* Unload data from a pmix_value_t structure. */
+PMIX_EXPORT pmix_status_t PMIx_Value_unload(pmix_value_t *val,
+                                            void **data,
+                                            size_t *sz);
+
+PMIX_EXPORT void PMIx_Value_destruct(pmix_value_t *val);
+
+/* Transfer data from one pmix_value_t to another - this is actually
+ * executed as a COPY operation, so the original data is not altered.
+ */
+PMIX_EXPORT pmix_status_t PMIx_Value_xfer(pmix_value_t *dest,
+                                          const pmix_value_t *src);
+
+/* Compare the contents of two pmix_value_t structures */
+PMIX_EXPORT pmix_value_cmp_t PMIx_Value_compare(pmix_value_t *v1,
+                                                pmix_value_t *v2);
+
+PMIX_EXPORT void PMIx_Data_array_destruct(pmix_data_array_t *d);
+
+/* Load key/value data into a pmix_info_t struct. Note that this
+ * effectively is a PMIX_LOAD_KEY operation to copy the key,
+ * followed by a PMIx_Value_load to COPY the data into the
+ * pmix_value_t in the provided info struct */
+PMIX_EXPORT pmix_status_t PMIx_Info_load(pmix_info_t *info,
+                                         const char *key,
+                                         const void *data,
+                                         pmix_data_type_t type);
+
+/* Transfer data from one pmix_info_t to another - this is actually
+ * executed as a COPY operation, so the original data is not altered */
+PMIX_EXPORT pmix_status_t PMIx_Info_xfer(pmix_info_t *dest,
+                                         const pmix_info_t *src);
+
+/* Constructing arrays of pmix_info_t for passing to an API can
+ * be tedious since the pmix_info_t itself is not a "list object".
+ * Since this is a very frequent operation, a set of APIs has been
+ * provided that opaquely manipulates internal PMIx list structures
+ * for this purpose. The user only need provide a void* pointer to
+ * act as the caddy for the internal list object.
+ */
+
+/* Initialize a list of pmix_info_t structures */
+PMIX_EXPORT void* PMIx_Info_list_start(void);
+
+/* Add data to a list of pmix_info_t structs. The "ptr" passed
+ * here is the pointer returned by PMIx_Info_list_start.
+ */
+PMIX_EXPORT pmix_status_t PMIx_Info_list_add(void *ptr,
+                                             const char *key,
+                                             const void *value,
+                                             pmix_data_type_t type);
+
+PMIX_EXPORT pmix_status_t PMIx_Info_list_insert(void *ptr, pmix_info_t *info);
+
+/* Transfer the data in an existing pmix_info_t struct to a list. This
+ * is executed as a COPY operation, so the original data is not altered.
+ * The "ptr" passed here is the pointer returned by PMIx_Info_list_start
+ */
+PMIX_EXPORT pmix_status_t PMIx_Info_list_xfer(void *ptr,
+                                              const pmix_info_t *info);
+
+/* Convert the constructed list of pmix_info_t structs to a pmix_data_array_t
+ * of pmix_info_t. Data on the list is COPIED to the array elements.
+ */
+PMIX_EXPORT pmix_status_t PMIx_Info_list_convert(void *ptr, pmix_data_array_t *par);
+
+/* Release all data on the list and destruct all internal tracking */
+PMIX_EXPORT void PMIx_Info_list_release(void *ptr);
+
+#endif
 
 #if defined(c_plusplus) || defined(__cplusplus)
 }

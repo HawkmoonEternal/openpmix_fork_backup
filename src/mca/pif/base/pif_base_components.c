@@ -3,7 +3,7 @@
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015-2016 Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -14,15 +14,15 @@
 
 #include "pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/mca/mca.h"
 #include "src/mca/pif/base/base.h"
 #include "src/mca/pif/base/static-components.h"
 #include "src/mca/pif/pif.h"
-#include "src/util/output.h"
+#include "src/util/pmix_output.h"
 
 /* instantiate the global list of interfaces */
-pmix_list_t pmix_if_list = {{0}};
+pmix_list_t pmix_if_list = PMIX_LIST_STATIC_INIT;
 bool pmix_if_do_not_resolve = false;
 bool pmix_if_retain_loopback = false;
 
@@ -37,7 +37,7 @@ static bool frameopen = false;
 PMIX_CLASS_INSTANCE(pmix_pif_t, pmix_list_item_t, pmix_pif_construct, NULL);
 
 PMIX_MCA_BASE_FRAMEWORK_DECLARE(pmix, pif, NULL, pmix_pif_base_register, pmix_pif_base_open,
-                                pmix_pif_base_close, mca_pif_base_static_components,
+                                pmix_pif_base_close, pmix_mca_pif_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 static int pmix_pif_base_register(pmix_mca_base_register_flag_t flags)
@@ -46,17 +46,13 @@ static int pmix_pif_base_register(pmix_mca_base_register_flag_t flags)
     pmix_if_do_not_resolve = false;
     (void) pmix_mca_base_framework_var_register(&pmix_pif_base_framework, "do_not_resolve",
                                                 "If nonzero, do not attempt to resolve interfaces",
-                                                PMIX_MCA_BASE_VAR_TYPE_BOOL, NULL, 0,
-                                                PMIX_MCA_BASE_VAR_FLAG_SETTABLE, PMIX_INFO_LVL_9,
-                                                PMIX_MCA_BASE_VAR_SCOPE_ALL_EQ,
+                                                PMIX_MCA_BASE_VAR_TYPE_BOOL,
                                                 &pmix_if_do_not_resolve);
 
     pmix_if_retain_loopback = false;
     (void) pmix_mca_base_framework_var_register(&pmix_pif_base_framework, "retain_loopback",
                                                 "If nonzero, retain loopback interfaces",
-                                                PMIX_MCA_BASE_VAR_TYPE_BOOL, NULL, 0,
-                                                PMIX_MCA_BASE_VAR_FLAG_SETTABLE, PMIX_INFO_LVL_9,
-                                                PMIX_MCA_BASE_VAR_SCOPE_ALL_EQ,
+                                                PMIX_MCA_BASE_VAR_TYPE_BOOL,
                                                 &pmix_if_retain_loopback);
 
     return PMIX_SUCCESS;

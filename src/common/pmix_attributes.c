@@ -4,7 +4,8 @@
  * Copyright (c) 2016      Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
+ * Copyright (c) 2022      Triad National Security, LLC. All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -14,17 +15,19 @@
 #include "src/include/pmix_config.h"
 
 #include "include/pmix.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "include/pmix_server.h"
 
 #include "src/client/pmix_client_ops.h"
 #include "src/include/pmix_globals.h"
 #include "src/mca/bfrops/bfrops.h"
 #include "src/mca/gds/base/base.h"
-#include "src/threads/threads.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_hash.h"
 
 #include "src/common/pmix_attributes.h"
-#include "src/include/dictionary.h"
+#include "src/include/pmix_dictionary.h"
 
 static bool initialized = false;
 static pmix_list_t client_attrs;
@@ -59,11 +62,26 @@ static PMIX_CLASS_INSTANCE(pmix_attribute_trk_t, pmix_list_item_t, atrkcon, atrk
 
 PMIX_EXPORT void pmix_init_registered_attrs(void)
 {
+    size_t n;
+    pmix_regattr_input_t *p;
+
     if (!initialized) {
         PMIX_CONSTRUCT(&client_attrs, pmix_list_t);
         PMIX_CONSTRUCT(&server_attrs, pmix_list_t);
         PMIX_CONSTRUCT(&host_attrs, pmix_list_t);
         PMIX_CONSTRUCT(&tool_attrs, pmix_list_t);
+
+        /* cycle across the dictionary and load a hash
+         * table with translations of key -> index */
+        for (n=0; UINT32_MAX != pmix_dictionary[n].index; n++) {
+            p = (pmix_regattr_input_t*)pmix_malloc(sizeof(pmix_regattr_input_t));
+            p->index = pmix_dictionary[n].index;
+            p->name = strdup(pmix_dictionary[n].name);
+            p->string = strdup(pmix_dictionary[n].string);
+            p->type = pmix_dictionary[n].type;
+            p->description = pmix_argv_copy(pmix_dictionary[n].description);
+            pmix_hash_register_key(p->index, p);
+        }
         initialized = true;
     }
 }
@@ -126,7 +144,7 @@ PMIX_EXPORT void pmix_release_registered_attrs(void)
         PMIX_LIST_DESTRUCT(&server_attrs);
         PMIX_LIST_DESTRUCT(&host_attrs);
         PMIX_LIST_DESTRUCT(&tool_attrs);
-    }
+   }
     initialized = false;
 }
 
@@ -608,13 +626,14 @@ static void relcbfunc(void *cbdata)
     }
     PMIX_RELEASE(cd);
 }
-static void query_cbfunc(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr, pmix_buffer_t *buf,
-                         void *cbdata)
+static void query_cbfunc(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr,
+                         pmix_buffer_t *buf, void *cbdata)
 {
     pmix_query_caddy_t *cd = (pmix_query_caddy_t *) cbdata;
     pmix_status_t rc;
     pmix_shift_caddy_t *results;
     int cnt;
+    PMIX_HIDE_UNUSED_PARAMS(hdr);
 
     pmix_output_verbose(2, pmix_globals.debug_output, "pmix:attrs:query cback from server");
 
@@ -668,6 +687,7 @@ PMIX_EXPORT void pmix_attrs_query_support(int sd, short args, void *cbdata)
     pmix_buffer_t *msg;
     pmix_cmd_t cmd = PMIX_QUERY_CMD;
     pmix_status_t rc;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
     PMIX_ACQUIRE_THREAD(&pmix_global_lock);
 
@@ -827,37 +847,37 @@ release:
 }
 
 /*****   LOCATE A GIVEN ATTRIBUTE    *****/
-PMIX_EXPORT const char *pmix_attributes_lookup(char *attr)
+PMIX_EXPORT const char *pmix_attributes_lookup(const char *attr)
 {
     size_t n;
 
-    for (n = 0; 0 != strlen(dictionary[n].name); n++) {
-        if (0 == strcasecmp(dictionary[n].name, attr)) {
-            return dictionary[n].string;
+    for (n = 0; 0 != strlen(pmix_dictionary[n].name); n++) {
+        if (0 == strcasecmp(pmix_dictionary[n].name, attr)) {
+            return pmix_dictionary[n].string;
         }
     }
-    return NULL;
+    return attr;
 }
 
-PMIX_EXPORT const char *pmix_attributes_reverse_lookup(char *attrstring)
+PMIX_EXPORT const char *pmix_attributes_reverse_lookup(const char *attrstring)
 {
     size_t n;
 
-    for (n = 0; 0 != strlen(dictionary[n].name); n++) {
-        if (0 == strcasecmp(dictionary[n].string, attrstring)) {
-            return dictionary[n].name;
+    for (n = 0; 0 != strlen(pmix_dictionary[n].name); n++) {
+        if (0 == strcasecmp(pmix_dictionary[n].string, attrstring)) {
+            return pmix_dictionary[n].name;
         }
     }
-    return NULL;
+    return attrstring;
 }
 
 PMIX_EXPORT const pmix_regattr_input_t *pmix_attributes_lookup_term(char *attr)
 {
     size_t n;
 
-    for (n = 0; 0 != strlen(dictionary[n].name); n++) {
-        if (0 == strcmp(dictionary[n].name, attr)) {
-            return &dictionary[n];
+    for (n = 0; 0 != strlen(pmix_dictionary[n].name); n++) {
+        if (0 == strcmp(pmix_dictionary[n].name, attr)) {
+            return &pmix_dictionary[n];
         }
     }
     return NULL;

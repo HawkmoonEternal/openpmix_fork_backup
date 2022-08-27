@@ -12,7 +12,7 @@
  *                         All rights reserved.
  * Copyright (c) 2007      Voltaire All rights reserved.
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -22,7 +22,8 @@
 
 #include "src/include/pmix_config.h"
 #include "src/class/pmix_list.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
+#include "src/include/pmix_globals.h"
 
 /*
  *  List classes
@@ -61,6 +62,7 @@ static void pmix_list_item_destruct(pmix_list_item_t *item)
     assert(0 == item->pmix_list_item_refcount);
     assert(NULL == item->pmix_list_item_belong_to);
 #endif /* PMIX_ENABLE_DEBUG */
+    PMIX_HIDE_UNUSED_PARAMS(item);
 }
 
 /*

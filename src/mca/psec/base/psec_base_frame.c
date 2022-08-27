@@ -14,7 +14,7 @@
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015-2020 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -26,14 +26,14 @@
  */
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #ifdef HAVE_STRING_H
 #    include <string.h>
 #endif
 
 #include "src/class/pmix_list.h"
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/psec/base/base.h"
 
 /*
@@ -45,7 +45,11 @@
 #include "src/mca/psec/base/static-components.h"
 
 /* Instantiate the global vars */
-pmix_psec_globals_t pmix_psec_globals = {{{0}}};
+pmix_psec_globals_t pmix_psec_globals = {
+    .actives = PMIX_LIST_STATIC_INIT,
+    .initialized = false,
+    .selected = false
+};
 
 static pmix_status_t pmix_psec_close(void)
 {
@@ -81,7 +85,7 @@ static pmix_status_t pmix_psec_open(pmix_mca_base_open_flag_t flags)
 }
 
 PMIX_MCA_BASE_FRAMEWORK_DECLARE(pmix, psec, "PMIx Security Operations", NULL, pmix_psec_open,
-                                pmix_psec_close, mca_psec_base_static_components,
+                                pmix_psec_close, pmix_mca_psec_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 PMIX_CLASS_INSTANCE(pmix_psec_base_active_module_t, pmix_list_item_t, NULL, NULL);

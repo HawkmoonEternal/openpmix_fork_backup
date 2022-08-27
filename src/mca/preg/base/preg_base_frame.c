@@ -15,7 +15,7 @@
  * Copyright (c) 2015-2020 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2019      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -27,14 +27,14 @@
  */
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #ifdef HAVE_STRING_H
 #    include <string.h>
 #endif
 
 #include "src/class/pmix_list.h"
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/preg/base/base.h"
 
 /*
@@ -46,14 +46,22 @@
 #include "src/mca/preg/base/static-components.h"
 
 /* Instantiate the global vars */
-pmix_preg_globals_t pmix_preg_globals = {{{0}}};
-pmix_preg_module_t pmix_preg = {.generate_node_regex = pmix_preg_base_generate_node_regex,
-                                .generate_ppn = pmix_preg_base_generate_ppn,
-                                .parse_nodes = pmix_preg_base_parse_nodes,
-                                .parse_procs = pmix_preg_base_parse_procs,
-                                .copy = pmix_preg_base_copy,
-                                .pack = pmix_preg_base_pack,
-                                .unpack = pmix_preg_base_unpack};
+pmix_preg_globals_t pmix_preg_globals = {
+    .actives = PMIX_LIST_STATIC_INIT,
+    .initialized = false,
+    .selected = false
+};
+
+pmix_preg_module_t pmix_preg = {
+    .generate_node_regex = pmix_preg_base_generate_node_regex,
+    .generate_ppn = pmix_preg_base_generate_ppn,
+    .parse_nodes = pmix_preg_base_parse_nodes,
+    .parse_procs = pmix_preg_base_parse_procs,
+    .copy = pmix_preg_base_copy,
+    .pack = pmix_preg_base_pack,
+    .unpack = pmix_preg_base_unpack,
+    .release = pmix_preg_base_release
+};
 
 static pmix_status_t pmix_preg_close(void)
 {
@@ -79,7 +87,7 @@ static pmix_status_t pmix_preg_open(pmix_mca_base_open_flag_t flags)
 }
 
 PMIX_MCA_BASE_FRAMEWORK_DECLARE(pmix, preg, "PMIx Regex Operations", NULL, pmix_preg_open,
-                                pmix_preg_close, mca_preg_base_static_components,
+                                pmix_preg_close, pmix_mca_preg_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 PMIX_CLASS_INSTANCE(pmix_preg_base_active_module_t, pmix_list_item_t, NULL, NULL);

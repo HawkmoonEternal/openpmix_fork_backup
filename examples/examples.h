@@ -15,7 +15,7 @@
  * Copyright (c) 2011      Oak Ridge National Labs.  All rights reserved.
  * Copyright (c) 2013-2019 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015      Mellanox Technologies, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -24,12 +24,12 @@
  *
  */
 
-#define _GNU_SOURCE
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include <pmix_common.h>
 
@@ -78,6 +78,7 @@ typedef struct {
 /* define a structure for collecting returned
  * info from a query */
 typedef struct {
+    volatile bool active;
     mylock_t lock;
     pmix_info_t *info;
     size_t ninfo;
@@ -85,6 +86,7 @@ typedef struct {
 
 #define DEBUG_CONSTRUCT_MYQUERY(q)          \
     do {                                    \
+        (q)->active = false;                \
         DEBUG_CONSTRUCT_LOCK(&((q)->lock)); \
         (q)->info = NULL;                   \
         (q)->ninfo = 0;                     \
@@ -122,3 +124,17 @@ typedef struct {
             free((r)->nspace);             \
         }                                  \
     } while (0)
+
+#define EXAMPLES_HIDE_UNUSED_PARAMS(...)            \
+    do {                                            \
+        int __x = 3;                                \
+        examples_hide_unused_params(__x, __VA_ARGS__);  \
+    } while(0)
+
+static inline void examples_hide_unused_params(int x, ...)
+{
+    va_list ap;
+
+    va_start(ap, x);
+    va_end(ap);
+}

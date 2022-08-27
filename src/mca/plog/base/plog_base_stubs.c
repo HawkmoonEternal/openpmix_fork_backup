@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2018-2020 Intel, Inc.  All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -12,12 +12,13 @@
 
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/include/pmix_globals.h"
 
 #include "src/class/pmix_list.h"
 #include "src/server/pmix_server_ops.h"
-#include "src/util/error.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_show_help.h"
 
 #include "src/mca/plog/base/base.h"
 
@@ -65,7 +66,8 @@ static void localcbfunc(pmix_status_t status, void *cbdata)
     PMIX_RELEASE_THREAD(&mycount->lock);
 }
 
-pmix_status_t pmix_plog_base_log(const pmix_proc_t *source, const pmix_info_t data[], size_t ndata,
+pmix_status_t pmix_plog_base_log(const pmix_proc_t *source,
+                                 const pmix_info_t data[], size_t ndata,
                                  const pmix_info_t directives[], size_t ndirs,
                                  pmix_op_cbfunc_t cbfunc, void *cbdata)
 {
@@ -77,9 +79,16 @@ pmix_status_t pmix_plog_base_log(const pmix_proc_t *source, const pmix_info_t da
     pmix_mycount_t *mycount;
     pmix_list_t channels;
     bool all_complete = true;
+    char *key = NULL, *val = NULL;
+    bool agg = true;  // default to aggregating show_help messages
 
     if (!pmix_plog_globals.initialized) {
         return PMIX_ERR_INIT;
+    }
+
+    /* if there is no data to output, then nothing to do */
+    if (NULL == data) {
+        return PMIX_OPERATION_SUCCEEDED;
     }
 
     /* we have to serialize our way thru here as we are going
@@ -87,7 +96,8 @@ pmix_status_t pmix_plog_base_log(const pmix_proc_t *source, const pmix_info_t da
      * can only be on one list at a time */
     PMIX_ACQUIRE_THREAD(&pmix_plog_globals.lock);
 
-    pmix_output_verbose(2, pmix_plog_base_framework.framework_output, "plog:log called");
+    pmix_output_verbose(2, pmix_plog_base_framework.framework_output,
+                        "plog:log called");
 
     /* initialize the tracker */
     mycount = PMIX_NEW(pmix_mycount_t);
@@ -108,7 +118,24 @@ pmix_status_t pmix_plog_base_log(const pmix_proc_t *source, const pmix_info_t da
         for (n = 0; n < ndirs; n++) {
             if (PMIX_CHECK_KEY(&directives[n], PMIX_LOG_ONCE)) {
                 logonce = PMIX_INFO_TRUE(&directives[n]);
-                break;
+            }
+            else if (PMIX_CHECK_KEY(&directives[n], PMIX_LOG_AGG)) {
+                    agg = PMIX_INFO_TRUE(&directives[n]);
+            }
+            else if (PMIX_CHECK_KEY(&directives[n], PMIX_LOG_KEY)) {
+                key = directives[n].value.data.string;
+            }
+            else if (PMIX_CHECK_KEY(&directives[n], PMIX_LOG_VAL)) {
+                val = directives[n].value.data.string;
+            }
+        }
+        if (agg && NULL != key && NULL != val) {
+            if (PMIX_SUCCESS == pmix_help_check_dups(key, val)) {
+                for (k = 0; k < ndata; k++) {
+                    // This is a dup and has been tracked as such,
+                    // mark this as complete so we don't log it again.
+                    PMIX_INFO_OP_COMPLETED(&data[k]);
+                }
             }
         }
     }
@@ -122,9 +149,9 @@ pmix_status_t pmix_plog_base_log(const pmix_proc_t *source, const pmix_info_t da
         }
         all_complete = false;
         for (m = 0; m < pmix_plog_globals.actives.size; m++) {
-            if (NULL
-                == (active = (pmix_plog_base_active_module_t *)
-                        pmix_pointer_array_get_item(&pmix_plog_globals.actives, m))) {
+            active = (pmix_plog_base_active_module_t *)
+                            pmix_pointer_array_get_item(&pmix_plog_globals.actives, m);
+            if (NULL == active) {
                 continue;
             }
             /* if this channel is included in the ones serviced by this
@@ -157,12 +184,14 @@ pmix_status_t pmix_plog_base_log(const pmix_proc_t *source, const pmix_info_t da
     }
     if (all_complete) {
         /* nothing we need do */
-        while (NULL != pmix_list_remove_first(&channels))
-            ;
+        while (NULL != pmix_list_remove_first(&channels));
         PMIX_DESTRUCT(&channels);
         PMIX_RELEASE(mycount);
         PMIX_RELEASE_THREAD(&pmix_plog_globals.lock);
-        return PMIX_SUCCESS;
+
+        // Don't return PMIX_SUCCESS here, or else the called
+        // will expect the cbfunc to be executed (which it won't be.).
+        return PMIX_OPERATION_SUCCEEDED;
     }
     PMIX_ACQUIRE_THREAD(&mycount->lock);
     PMIX_LIST_FOREACH (active, &channels, pmix_plog_base_active_module_t) {
@@ -201,7 +230,7 @@ pmix_status_t pmix_plog_base_log(const pmix_proc_t *source, const pmix_info_t da
              * fails - that error would be returned in the callback function.
              * In this case, the error indicates that the request contained
              * an incorrect/invalid element that prevents the plugin from
-             * executing it. The first such retured error will be cached and
+             * executing it. The first such returned error will be cached and
              * returned to the caller upon completion of all pending operations.
              * No callback from failed plugins shall be executed.
              */
@@ -231,8 +260,7 @@ pmix_status_t pmix_plog_base_log(const pmix_proc_t *source, const pmix_info_t da
     }
 
     /* cannot release the modules - just remove everything from the list */
-    while (NULL != pmix_list_remove_first(&channels))
-        ;
+    while (NULL != pmix_list_remove_first(&channels));
     PMIX_DESTRUCT(&channels);
 
     rc = mycount->status; // save the status as it could change when the lock is released

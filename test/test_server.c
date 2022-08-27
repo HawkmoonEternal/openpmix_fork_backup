@@ -4,7 +4,7 @@
  *                         All rights reserved.
  * Copyright (c) 2016-2019 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -23,7 +23,8 @@
 
 #include "pmix_server.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/error.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_printf.h"
 
 #include "cli_stages.h"
 #include "server_callbacks.h"
@@ -92,6 +93,9 @@ static void _dmdx_cb(int status, char *data, size_t sz, void *cbdata);
 static void release_cb(pmix_status_t status, void *cbdata)
 {
     int *ptr = (int *) cbdata;
+
+    PMIX_HIDE_UNUSED_PARAMS(status);
+
     *ptr = 0;
 }
 
@@ -195,7 +199,7 @@ static void set_namespace(int local_size, int univ_size, int base_rank, char *na
         nodes = NULL;
         if (0 == my_server_id) {
             for (i = base_rank + local_size; i < univ_size; i++) {
-                asprintf(&ppn, "%d", i);
+                pmix_asprintf(&ppn, "%d", i);
                 pmix_argv_append_nosize(&nodes, ppn);
                 free(ppn);
             }
@@ -204,7 +208,7 @@ static void set_namespace(int local_size, int univ_size, int base_rank, char *na
             free(ppn);
         } else {
             for (i = 0; i < base_rank; i++) {
-                asprintf(&ppn, "%d", i);
+                pmix_asprintf(&ppn, "%d", i);
                 pmix_argv_append_nosize(&nodes, ppn);
                 free(ppn);
             }
@@ -424,6 +428,7 @@ static int server_send_msg(msg_hdr_t *msg_hdr, char *data, size_t size)
 {
     size_t ret = 0;
     server_info_t *server = NULL, *server_tmp;
+
     if (0 == my_server_id) {
         PMIX_LIST_FOREACH (server_tmp, server_list, server_info_t) {
             if (server_tmp->idx == msg_hdr->dst_id) {
@@ -449,6 +454,8 @@ static int server_send_msg(msg_hdr_t *msg_hdr, char *data, size_t size)
 static void _send_procs_cb(pmix_status_t status, const char *data, size_t ndata, void *cbdata,
                            pmix_release_cbfunc_t relfn, void *relcbd)
 {
+    PMIX_HIDE_UNUSED_PARAMS(status, relfn, relcbd);
+
     server_info_t *server = (server_info_t *) cbdata;
 
     server_unpack_procs((char *) data, ndata);
@@ -537,6 +544,8 @@ static void server_read_cb(int fd, short event, void *arg)
     static size_t barrier_cnt = 0;
     static size_t contrib_cnt = 0;
     static size_t fence_buf_offset = 0;
+
+    PMIX_HIDE_UNUSED_PARAMS(fd, event);
 
     rc = read(server->rd_fd, &msg_hdr, sizeof(msg_hdr_t));
     if (rc <= 0) {
@@ -704,6 +713,8 @@ static void _dmdx_cb(int status, char *data, size_t sz, void *cbdata)
     msg_hdr_t msg_hdr;
     int *sender_id = (int *) cbdata;
 
+    PMIX_HIDE_UNUSED_PARAMS(status);
+
     msg_hdr.cmd = CMD_DMDX_RESPONSE;
     msg_hdr.src_id = my_server_id;
     msg_hdr.size = sz;
@@ -778,6 +789,8 @@ static void wait_signal_callback(int fd, short event, void *arg)
     pid_t pid;
     int i;
 
+    PMIX_HIDE_UNUSED_PARAMS(fd, event);
+
     if (SIGCHLD != pmix_event_get_signal(sig)) {
         return;
     }
@@ -836,14 +849,23 @@ int server_init(test_params *params)
 
         TEST_VERBOSE(("pmix server %d started PID:%d", my_server_id, getpid()));
         for (i = params->nservers - 1; i >= 0; i--) {
+            int ret;
             pid_t pid;
             server_info = PMIX_NEW(server_info_t);
 
             int fd1[2];
             int fd2[2];
 
-            pipe(fd1);
-            pipe(fd2);
+            ret = pipe(fd1);
+            if (ret != 0) {
+                TEST_ERROR(("pipe failed"));
+                return -1;
+            }
+            ret = pipe(fd2);
+            if (ret != 0) {
+                TEST_ERROR(("pipe failed"));
+                return -1;
+            }
 
             if (0 != i) {
                 pid = fork();
@@ -855,7 +877,7 @@ int server_init(test_params *params)
                     server_list = PMIX_NEW(pmix_list_t);
                     my_server_info = server_info;
                     my_server_id = i;
-                    asprintf(&server_info->hostname, "node%d", i);
+                    pmix_asprintf(&server_info->hostname, "node%d", i);
                     server_info->idx = 0;
                     server_info->pid = getppid();
                     server_info->rd_fd = fd1[0];
@@ -866,7 +888,7 @@ int server_init(test_params *params)
                     pmix_list_append(server_list, &server_info->super);
                     break;
                 }
-                asprintf(&server_info->hostname, "node%d", i);
+                pmix_asprintf(&server_info->hostname, "node%d", i);
                 server_info->idx = i;
                 server_info->pid = pid;
                 server_info->wr_fd = fd1[1];

@@ -14,7 +14,7 @@
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015-2020 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -26,16 +26,16 @@
  */
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #ifdef HAVE_STRING_H
 #    include <string.h>
 #endif
 
 #include "src/class/pmix_list.h"
-#include "src/util/argv.h"
+#include "src/util/pmix_argv.h"
 
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/gds/base/base.h"
 
 /*
@@ -47,7 +47,12 @@
 #include "src/mca/gds/base/static-components.h"
 
 /* Instantiate the global vars */
-pmix_gds_globals_t pmix_gds_globals = {{{0}}};
+pmix_gds_globals_t pmix_gds_globals = {
+    .actives = PMIX_LIST_STATIC_INIT,
+    .initialized = false,
+    .selected = false,
+    .all_mods = NULL
+};
 int pmix_gds_base_output = -1;
 
 static pmix_status_t pmix_gds_close(void)
@@ -92,7 +97,7 @@ static pmix_status_t pmix_gds_open(pmix_mca_base_open_flag_t flags)
 }
 
 PMIX_MCA_BASE_FRAMEWORK_DECLARE(pmix, gds, "PMIx Generalized Data Store", NULL, pmix_gds_open,
-                                pmix_gds_close, mca_gds_base_static_components,
+                                pmix_gds_close, pmix_mca_gds_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 PMIX_CLASS_INSTANCE(pmix_gds_base_active_module_t, pmix_list_item_t, NULL, NULL);

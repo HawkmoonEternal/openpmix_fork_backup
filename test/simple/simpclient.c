@@ -17,7 +17,7 @@
  * Copyright (c) 2015      Mellanox Technologies, Inc.  All rights reserved.
  * Copyright (c) 2019      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -36,8 +36,9 @@
 
 #include "src/class/pmix_object.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/output.h"
-#include "src/util/printf.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_printf.h"
 
 #define MAXCNT 1
 
@@ -49,6 +50,7 @@ static void notification_fn(size_t evhdlr_registration_id, pmix_status_t status,
                             pmix_info_t results[], size_t nresults,
                             pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, source, info, ninfo, results, nresults);
     pmix_output(0, "Client %s:%d NOTIFIED with status %s", myproc.nspace, myproc.rank,
                 PMIx_Error_string(status));
     if (NULL != cbfunc) {
@@ -60,6 +62,7 @@ static void notification_fn(size_t evhdlr_registration_id, pmix_status_t status,
 static void opcbfunc(pmix_status_t status, void *cbdata)
 {
     volatile bool *active = (volatile bool *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(status);
     *active = false;
 }
 
@@ -76,6 +79,7 @@ static void model_callback(size_t evhdlr_registration_id, pmix_status_t status,
                            pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
     size_t n;
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, source, results, nresults);
 
     /* just let us know it was received */
     fprintf(stderr, "%s:%d Model event handler called with status %d(%s)\n", myproc.nspace,
@@ -259,7 +263,7 @@ int main(int argc, char **argv)
 
         /* call fence to ensure the data is received */
         PMIX_PROC_CONSTRUCT(&proc);
-        (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+        pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
         proc.rank = PMIX_RANK_WILDCARD;
         if (PMIX_SUCCESS != (rc = PMIx_Fence(&proc, 1, NULL, 0))) {
             pmix_output(0, "Client ns %s rank %d cnt %d: PMIx_Fence failed: %s", myproc.nspace,
@@ -268,7 +272,7 @@ int main(int argc, char **argv)
         }
 
         /* check the returned data */
-        (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+        pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
         for (j = 0; j <= cnt; j++) {
             for (n = 0; n < nprocs; n++) {
                 proc.rank = n;

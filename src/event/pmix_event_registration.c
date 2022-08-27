@@ -3,7 +3,7 @@
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2017-2018 Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -13,13 +13,13 @@
 #include "src/include/pmix_config.h"
 
 #include "include/pmix.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "include/pmix_server.h"
 
-#include "src/threads/threads.h"
-#include "src/util/error.h"
-#include "src/util/name_fns.h"
-#include "src/util/output.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_output.h"
 
 #include "src/client/pmix_client_ops.h"
 #include "src/event/pmix_event.h"
@@ -83,7 +83,9 @@ static void check_cached_events(pmix_rshift_caddy_t *cd);
 
 /* catch the event registration response message from the
  * server and process it */
-static void regevents_cbfunc(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr, pmix_buffer_t *buf,
+static void regevents_cbfunc(struct pmix_peer_t *peer,
+                             pmix_ptl_hdr_t *hdr,
+                             pmix_buffer_t *buf,
                              void *cbdata)
 {
     pmix_rshift_caddy_t *rb = (pmix_rshift_caddy_t *) cbdata;
@@ -93,6 +95,8 @@ static void regevents_cbfunc(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr, pmix
     size_t index = rb->index;
 
     pmix_output_verbose(2, pmix_client_globals.event_output, "pmix: regevents callback recvd");
+
+    PMIX_HIDE_UNUSED_PARAMS(hdr);
 
     /* unpack the status code */
     cnt = 1;
@@ -241,7 +245,8 @@ static pmix_status_t _add_hdlr(pmix_rshift_caddy_t *cd, pmix_list_t *xfer)
     pmix_active_code_t *active;
     pmix_status_t rc;
 
-    pmix_output_verbose(2, pmix_client_globals.event_output, "pmix: _add_hdlr");
+    pmix_output_verbose(2, pmix_client_globals.event_output,
+                        "pmix: _add_hdlr");
 
     /* check to see if we have an active registration on these codes */
     if (NULL == cd->codes) {
@@ -463,6 +468,7 @@ static void reg_event_hdlr(int sd, short args, void *cbdata)
     char *name = NULL, *locator = NULL;
     bool firstoverall = false, lastoverall = false;
     bool found;
+    bool oneshot = false;
     pmix_list_t xfer;
     pmix_info_caddy_t *ixfer;
     void *cbobject = NULL;
@@ -473,6 +479,8 @@ static void reg_event_hdlr(int sd, short args, void *cbdata)
     /* need to acquire the object from its originating thread */
     PMIX_ACQUIRE_OBJECT(cd);
 
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
+
     pmix_output_verbose(2, pmix_client_globals.event_output,
                         "[%s]: register event_hdlr with %d infos",
                         PMIX_NAME_PRINT(&pmix_globals.myid), (int) cd->ninfo);
@@ -482,49 +490,45 @@ static void reg_event_hdlr(int sd, short args, void *cbdata)
     /* if directives were included */
     if (NULL != cd->info) {
         for (n = 0; n < cd->ninfo; n++) {
-            if (0 == strncmp(cd->info[n].key, PMIX_EVENT_HDLR_FIRST, PMIX_MAX_KEYLEN)) {
+            if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_HDLR_FIRST)) {
                 /* flag if they asked to put this one first overall */
                 firstoverall = PMIX_INFO_TRUE(&cd->info[n]);
                 location = PMIX_EVENT_ORDER_FIRST_OVERALL;
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_HDLR_LAST, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_HDLR_LAST)) {
                 /* flag if they asked to put this one last overall */
                 lastoverall = PMIX_INFO_TRUE(&cd->info[n]);
                 location = PMIX_EVENT_ORDER_LAST_OVERALL;
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_HDLR_PREPEND, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_HDLR_PREPEND)) {
                 /* flag if they asked to prepend this handler */
                 if (PMIX_INFO_TRUE(&cd->info[n])) {
                     location = PMIX_EVENT_ORDER_PREPEND;
                 }
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_HDLR_APPEND, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_HDLR_APPEND)) {
                 /* flag if they asked to append this handler */
                 if (PMIX_INFO_TRUE(&cd->info[n])) {
                     location = PMIX_EVENT_ORDER_APPEND;
                 }
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_HDLR_NAME, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_HDLR_NAME)) {
                 name = cd->info[n].value.data.string;
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_RETURN_OBJECT, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_RETURN_OBJECT)) {
                 cbobject = cd->info[n].value.data.ptr;
-            } else if (0
-                       == strncmp(cd->info[n].key, PMIX_EVENT_HDLR_FIRST_IN_CATEGORY,
-                                  PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_HDLR_FIRST_IN_CATEGORY)) {
                 if (PMIX_INFO_TRUE(&cd->info[n])) {
                     location = PMIX_EVENT_ORDER_FIRST;
                 }
-            } else if (0
-                       == strncmp(cd->info[n].key, PMIX_EVENT_HDLR_LAST_IN_CATEGORY,
-                                  PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_HDLR_LAST_IN_CATEGORY)) {
                 if (PMIX_INFO_TRUE(&cd->info[n])) {
                     location = PMIX_EVENT_ORDER_LAST;
                 }
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_HDLR_BEFORE, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_HDLR_BEFORE)) {
                 location = PMIX_EVENT_ORDER_BEFORE;
                 locator = cd->info[n].value.data.string;
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_HDLR_AFTER, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_HDLR_AFTER)) {
                 location = PMIX_EVENT_ORDER_AFTER;
                 locator = cd->info[n].value.data.string;
-            } else if (0 == strncmp(cd->info[n].key, PMIX_RANGE, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_RANGE)) {
                 range = cd->info[n].value.data.range;
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_CUSTOM_RANGE, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_CUSTOM_RANGE)) {
                 /* provides an array of pmix_proc_t identifying the procs
                  * that are to receive this notification, or a single pmix_proc_t  */
                 if (PMIX_DATA_ARRAY == cd->info[n].value.type
@@ -541,20 +545,22 @@ static void reg_event_hdlr(int sd, short args, void *cbdata)
                     rc = PMIX_ERR_BAD_PARAM;
                     goto ack;
                 }
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_AFFECTED_PROC, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_AFFECTED_PROC)) {
                 cd->affected = cd->info[n].value.data.proc;
                 cd->naffected = 1;
                 ixfer = PMIX_NEW(pmix_info_caddy_t);
                 ixfer->info = &cd->info[n];
                 ixfer->ninfo = 1;
                 pmix_list_append(&xfer, &ixfer->super);
-            } else if (0 == strncmp(cd->info[n].key, PMIX_EVENT_AFFECTED_PROCS, PMIX_MAX_KEYLEN)) {
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_AFFECTED_PROCS)) {
                 cd->affected = (pmix_proc_t *) cd->info[n].value.data.darray->array;
                 cd->naffected = cd->info[n].value.data.darray->size;
                 ixfer = PMIX_NEW(pmix_info_caddy_t);
                 ixfer->info = &cd->info[n];
                 ixfer->ninfo = 1;
                 pmix_list_append(&xfer, &ixfer->super);
+            } else if (PMIX_CHECK_KEY(&cd->info[n], PMIX_EVENT_ONESHOT)) {
+                oneshot = PMIX_INFO_TRUE(&cd->info[n]);
             } else {
                 ixfer = PMIX_NEW(pmix_info_caddy_t);
                 ixfer->info = &cd->info[n];
@@ -576,8 +582,8 @@ static void reg_event_hdlr(int sd, short args, void *cbdata)
      * first check to ensure they didn't already direct some
      * other event into the same cherished position */
     if (firstoverall || lastoverall) {
-        if ((firstoverall && NULL != pmix_globals.events.first)
-            || (lastoverall && NULL != pmix_globals.events.last)) {
+        if ((firstoverall && NULL != pmix_globals.events.first) ||
+            (lastoverall && NULL != pmix_globals.events.last)) {
             /* oops - someone already took that position */
             index = UINT_MAX;
             rc = PMIX_ERR_EVENT_REGISTRATION;
@@ -592,6 +598,7 @@ static void reg_event_hdlr(int sd, short args, void *cbdata)
         if (NULL != name) {
             evhdlr->name = strdup(name);
         }
+        evhdlr->oneshot = oneshot;
         evhdlr->precedence = location;
         index = pmix_globals.events.nhdlrs;
         evhdlr->index = index;
@@ -658,6 +665,7 @@ static void reg_event_hdlr(int sd, short args, void *cbdata)
     index = pmix_globals.events.nhdlrs;
     evhdlr->index = index;
     ++pmix_globals.events.nhdlrs;
+    evhdlr->oneshot = oneshot;
     evhdlr->precedence = location;
     if (NULL != locator) {
         evhdlr->locator = strdup(locator);
@@ -947,74 +955,58 @@ PMIX_EXPORT pmix_status_t PMIx_Register_event_handler(pmix_status_t codes[], siz
     return rc;
 }
 
-static void dereg_event_hdlr(int sd, short args, void *cbdata)
+pmix_status_t pmix_deregister_event_hdlr(size_t event_hdlr_ref,
+                                         pmix_buffer_t *msg)
 {
-    pmix_shift_caddy_t *cd = (pmix_shift_caddy_t *) cbdata;
-    pmix_buffer_t *msg = NULL;
+    pmix_status_t rc;
     pmix_event_hdlr_t *evhdlr, *ev;
-    pmix_cmd_t cmd = PMIX_DEREGEVENTS_CMD;
-    pmix_status_t rc = PMIX_SUCCESS;
-    pmix_status_t wildcard = PMIX_MAX_ERR_CONSTANT;
     size_t n;
     pmix_active_code_t *active;
-
-    /* need to acquire the object from its originating thread */
-    PMIX_ACQUIRE_OBJECT(cd);
-
-    /* if I am not the server, and I am connected, then I need
-     * to notify the server to remove my registration */
-    if ((!PMIX_PEER_IS_SERVER(pmix_globals.mypeer) || PMIX_PEER_IS_LAUNCHER(pmix_globals.mypeer))
-        && pmix_globals.connected) {
-        msg = PMIX_NEW(pmix_buffer_t);
-        PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg, &cmd, 1, PMIX_COMMAND);
-        if (PMIX_SUCCESS != rc) {
-            PMIX_RELEASE(msg);
-            goto cleanup;
-        }
-    }
+    pmix_status_t wildcard = PMIX_MAX_ERR_CONSTANT;
 
     /* check the first and last locations */
-    if ((NULL != pmix_globals.events.first && pmix_globals.events.first->index == cd->ref)
-        || (NULL != pmix_globals.events.last && pmix_globals.events.last->index == cd->ref)) {
+    if ((NULL != pmix_globals.events.first && pmix_globals.events.first->index == event_hdlr_ref) ||
+        (NULL != pmix_globals.events.last && pmix_globals.events.last->index == event_hdlr_ref)) {
         /* found it */
-        if (NULL != pmix_globals.events.first && pmix_globals.events.first->index == cd->ref) {
+        if (NULL != pmix_globals.events.first &&
+            pmix_globals.events.first->index == event_hdlr_ref) {
             ev = pmix_globals.events.first;
         } else {
             ev = pmix_globals.events.last;
         }
-        if (NULL != msg) {
-            /* if this is a default handler, see if any other default
-             * handlers remain */
-            if (NULL == ev->codes) {
+        /* if this is a default handler, see if any other default
+         * handlers remain */
+        if (NULL == ev->codes) {
+            if (NULL != msg) {
                 if (0 == pmix_list_get_size(&pmix_globals.events.default_events)) {
                     /* tell the server to dereg our default handler */
-                    PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg, &wildcard, 1,
-                                     PMIX_STATUS);
+                    PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg,
+                                     &wildcard, 1, PMIX_STATUS);
                     if (PMIX_SUCCESS != rc) {
-                        PMIX_RELEASE(msg);
-                        goto cleanup;
+                        return rc;
                     }
                 }
-            } else {
-                for (n = 0; n < ev->ncodes; n++) {
-                    /* see if this is the last registration we have for this code */
-                    PMIX_LIST_FOREACH (active, &pmix_globals.events.actives, pmix_active_code_t) {
-                        if (active->code == ev->codes[n]) {
-                            --active->nregs;
-                            if (0 == active->nregs) {
-                                pmix_list_remove_item(&pmix_globals.events.actives, &active->super);
+            }
+        } else {
+            for (n = 0; n < ev->ncodes; n++) {
+                /* see if this is the last registration we have for this code */
+                PMIX_LIST_FOREACH (active, &pmix_globals.events.actives, pmix_active_code_t) {
+                    if (active->code == ev->codes[n]) {
+                        --active->nregs;
+                        if (0 == active->nregs) {
+                            pmix_list_remove_item(&pmix_globals.events.actives, &active->super);
+                            if (NULL != msg) {
                                 /* tell the server to dereg this code */
                                 PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg,
                                                  &active->code, 1, PMIX_STATUS);
                                 if (PMIX_SUCCESS != rc) {
                                     PMIX_RELEASE(active);
-                                    PMIX_RELEASE(msg);
-                                    goto cleanup;
+                                    return rc;
                                 }
-                                PMIX_RELEASE(active);
                             }
-                            break;
+                            PMIX_RELEASE(active);
                         }
+                        break;
                     }
                 }
             }
@@ -1025,12 +1017,12 @@ static void dereg_event_hdlr(int sd, short args, void *cbdata)
             pmix_globals.events.last = NULL;
         }
         PMIX_RELEASE(ev);
-        goto cleanup;
+        return PMIX_SUCCESS;
     }
 
     /* the registration can be in any of three places, so check each of them */
     PMIX_LIST_FOREACH (evhdlr, &pmix_globals.events.default_events, pmix_event_hdlr_t) {
-        if (evhdlr->index == cd->ref) {
+        if (evhdlr->index == event_hdlr_ref) {
             /* found it */
             pmix_list_remove_item(&pmix_globals.events.default_events, &evhdlr->super);
             if (NULL != msg) {
@@ -1040,48 +1032,44 @@ static void dereg_event_hdlr(int sd, short args, void *cbdata)
                     PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg, &wildcard, 1,
                                      PMIX_STATUS);
                     if (PMIX_SUCCESS != rc) {
-                        PMIX_RELEASE(msg);
-                        goto cleanup;
+                        return rc;
                     }
                 }
             }
             PMIX_RELEASE(evhdlr);
-            goto report;
+            return PMIX_SUCCESS;
         }
     }
     PMIX_LIST_FOREACH (evhdlr, &pmix_globals.events.single_events, pmix_event_hdlr_t) {
-        if (evhdlr->index == cd->ref) {
+        if (evhdlr->index == event_hdlr_ref) {
             /* found it */
             pmix_list_remove_item(&pmix_globals.events.single_events, &evhdlr->super);
-            if (NULL != msg) {
-                /* see if this is the last registration we have for this code */
-                PMIX_LIST_FOREACH (active, &pmix_globals.events.actives, pmix_active_code_t) {
-                    if (active->code == evhdlr->codes[0]) {
-                        --active->nregs;
-                        if (0 == active->nregs) {
-                            pmix_list_remove_item(&pmix_globals.events.actives, &active->super);
-                            if (NULL != msg) {
-                                /* tell the server to dereg this code */
-                                PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg,
-                                                 &active->code, 1, PMIX_STATUS);
-                                if (PMIX_SUCCESS != rc) {
-                                    PMIX_RELEASE(active);
-                                    PMIX_RELEASE(msg);
-                                    goto cleanup;
-                                }
+            /* see if this is the last registration we have for this code */
+            PMIX_LIST_FOREACH (active, &pmix_globals.events.actives, pmix_active_code_t) {
+                if (active->code == evhdlr->codes[0]) {
+                    --active->nregs;
+                    if (0 == active->nregs) {
+                        pmix_list_remove_item(&pmix_globals.events.actives, &active->super);
+                        if (NULL != msg) {
+                            /* tell the server to dereg this code */
+                            PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg,
+                                             &active->code, 1, PMIX_STATUS);
+                            if (PMIX_SUCCESS != rc) {
+                                PMIX_RELEASE(active);
+                                return rc;
                             }
-                            PMIX_RELEASE(active);
                         }
-                        break;
+                        PMIX_RELEASE(active);
                     }
+                    break;
                 }
             }
             PMIX_RELEASE(evhdlr);
-            goto report;
+            return PMIX_SUCCESS;
         }
     }
     PMIX_LIST_FOREACH (evhdlr, &pmix_globals.events.multi_events, pmix_event_hdlr_t) {
-        if (evhdlr->index == cd->ref) {
+        if (evhdlr->index == event_hdlr_ref) {
             /* found it */
             pmix_list_remove_item(&pmix_globals.events.multi_events, &evhdlr->super);
             for (n = 0; n < evhdlr->ncodes; n++) {
@@ -1097,8 +1085,7 @@ static void dereg_event_hdlr(int sd, short args, void *cbdata)
                                                  &active->code, 1, PMIX_STATUS);
                                 if (PMIX_SUCCESS != rc) {
                                     PMIX_RELEASE(active);
-                                    PMIX_RELEASE(msg);
-                                    goto cleanup;
+                                    return rc;
                                 }
                             }
                             PMIX_RELEASE(active);
@@ -1108,21 +1095,43 @@ static void dereg_event_hdlr(int sd, short args, void *cbdata)
                 }
             }
             PMIX_RELEASE(evhdlr);
-            goto report;
+            return PMIX_SUCCESS;
         }
     }
-    /* if we get here, then the registration could not be found */
-    if (NULL != msg) {
-        PMIX_RELEASE(msg);
-    }
-    goto cleanup;
+    return PMIX_SUCCESS;
+}
 
-report:
+static void dereg_event_hdlr(int sd, short args, void *cbdata)
+{
+    pmix_shift_caddy_t *cd = (pmix_shift_caddy_t *) cbdata;
+    pmix_buffer_t *msg = NULL;
+    pmix_cmd_t cmd = PMIX_DEREGEVENTS_CMD;
+    pmix_status_t rc = PMIX_SUCCESS;
+
+    /* need to acquire the object from its originating thread */
+    PMIX_ACQUIRE_OBJECT(cd);
+
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
+
+    /* if I am not the server, and I am connected, then I need
+     * to notify the server to remove my registration */
+    if ((!PMIX_PEER_IS_SERVER(pmix_globals.mypeer) || PMIX_PEER_IS_LAUNCHER(pmix_globals.mypeer))
+        && pmix_globals.connected) {
+        msg = PMIX_NEW(pmix_buffer_t);
+        PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg, &cmd, 1, PMIX_COMMAND);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_RELEASE(msg);
+            goto cleanup;
+        }
+    }
+    pmix_deregister_event_hdlr(cd->ref, msg);
+
     if (NULL != msg) {
         /* send to the server */
         PMIX_PTL_SEND_RECV(rc, pmix_client_globals.myserver, msg, NULL, NULL);
         if (PMIX_SUCCESS != rc) {
             PMIX_ERROR_LOG(rc);
+            PMIX_RELEASE(msg);
         }
     }
 

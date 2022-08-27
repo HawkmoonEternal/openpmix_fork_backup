@@ -12,7 +12,7 @@
  * Copyright (c) 2007      Sun Microsystems, Inc.  All rights reserved.
  * Copyright (c) 2009      Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -25,7 +25,7 @@
  */
 
 #include "pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -35,10 +35,10 @@
 #endif
 #include <signal.h>
 
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/name_fns.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_show_help.h"
 
 #include "plog_smtp.h"
 #include "src/mca/plog/base/base.h"
@@ -125,9 +125,9 @@ static const char *message_cb(void **buf, int *len, void *arg)
         return "\r\n";
 
     case SENT_HEADER:
-        if (NULL != mca_plog_smtp_component.body_prefix) {
+        if (NULL != pmix_mca_plog_smtp_component.body_prefix) {
             ms->sent_flag = SENT_BODY_PREFIX;
-            ms->prev_string = crnl(mca_plog_smtp_component.body_prefix);
+            ms->prev_string = crnl(pmix_mca_plog_smtp_component.body_prefix);
             *len = strlen(ms->prev_string);
             return ms->prev_string;
         }
@@ -139,9 +139,9 @@ static const char *message_cb(void **buf, int *len, void *arg)
         return ms->prev_string;
 
     case SENT_BODY:
-        if (NULL != mca_plog_smtp_component.body_suffix) {
+        if (NULL != pmix_mca_plog_smtp_component.body_suffix) {
             ms->sent_flag = SENT_BODY_SUFFIX;
-            ms->prev_string = crnl(mca_plog_smtp_component.body_suffix);
+            ms->prev_string = crnl(pmix_mca_plog_smtp_component.body_suffix);
             *len = strlen(ms->prev_string);
             return ms->prev_string;
         }
@@ -168,7 +168,7 @@ static int send_email(char *msg)
     smtp_session_t session = NULL;
     smtp_message_t message = NULL;
     message_status_t ms;
-    pmix_plog_smtp_component_t *c = &mca_plog_smtp_component;
+    pmix_plog_smtp_component_t *c = &pmix_mca_plog_smtp_component;
 
     if (NULL == c->to_argv) {
         c->to_argv = pmix_argv_split(c->to, ',');
@@ -191,7 +191,7 @@ static int send_email(char *msg)
     set_oldsig = true;
 
     /* Try to get a libesmtp session.  If so, assume that libesmtp is
-       happy and proceeed */
+       happy and proceed */
     session = smtp_create_session();
     if (NULL == session) {
         err = PMIX_ERR_NOT_SUPPORTED;

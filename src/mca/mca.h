@@ -14,7 +14,7 @@
  * Copyright (c) 2015      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -84,7 +84,7 @@ typedef struct pmix_mca_base_module_2_0_0_t pmix_mca_base_module_2_0_0_t;
  *
  * If the component a) has no MCA parameters to register, b) no
  * resources to allocate, and c) can always be used in a process
- * (albiet perhaps not selected), it may provide NULL for this
+ * (albeit perhaps not selected), it may provide NULL for this
  * function.  In this cause, the MCA will act as if it called the open
  * function and it returned PMIX_SUCCESS.
  */
@@ -127,7 +127,7 @@ typedef int (*pmix_mca_base_close_component_1_0_0_fn_t)(void);
  *
  * This function is used by the mca_base_select function to find the
  * highest priority component to select. Frameworks are free to
- * implement their own query function, but must also implment their
+ * implement their own query function, but must also implement their
  * own select function as a result.
  */
 typedef int (*pmix_mca_base_query_component_2_0_0_fn_t)(pmix_mca_base_module_2_0_0_t **module,
@@ -176,7 +176,7 @@ typedef int (*pmix_mca_base_query_component_2_0_0_fn_t)(pmix_mca_base_module_2_0
  *
  * If the component a) has no MCA parameters to register, b) no
  * resources to allocate, and c) can always be used in a process
- * (albiet perhaps not selected), it may provide NULL for this
+ * (albeit perhaps not selected), it may provide NULL for this
  * function.  In this cause, the MCA will act as if it called the
  * registration function and it returned PMIX_SUCCESS.
  */
@@ -258,37 +258,30 @@ struct pmix_mca_base_component_2_1_0_t {
         breaking older components. */
     char reserved[32];
 };
+#define PMIX_BASE_COMPONENT_STATIC_INIT         \
+{                                               \
+    .pmix_mca_major_version = 0,                \
+    .pmix_mca_minor_version = 0,                \
+    .pmix_mca_release_version = 0,              \
+    .pmix_mca_project_name = {0},               \
+    .pmix_mca_type_major_version = 0,           \
+    .pmix_mca_type_minor_version = 0,           \
+    .pmix_mca_type_release_version = 0,         \
+    .pmix_mca_component_name = {0},             \
+    .pmix_mca_component_major_version = 0,      \
+    .pmix_mca_component_minor_version = 0,      \
+    .pmix_mca_component_release_version = 0,    \
+    .pmix_mca_open_component = NULL,            \
+    .pmix_mca_close_component = NULL,           \
+    .pmix_mca_query_component = NULL,           \
+    .pmix_mca_register_component_params = NULL, \
+    .reserved = {0}                             \
+}
 /** Unversioned convenience typedef; use this name in
     frameworks/components to stay forward source-compatible */
 typedef struct pmix_mca_base_component_2_1_0_t pmix_mca_base_component_t;
 /** Versioned convenience typedef */
 typedef struct pmix_mca_base_component_2_1_0_t pmix_mca_base_component_2_1_0_t;
-
-/*
- * Metadata Bit field parameters
- */
-#define PMIX_MCA_BASE_METADATA_PARAM_NONE       (uint32_t) 0x00 /**< No Metadata flags */
-#define PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT (uint32_t) 0x02 /**< Checkpoint enabled Component \
-                                                                 */
-#define PMIX_MCA_BASE_METADATA_PARAM_DEBUG (uint32_t) 0x04      /**< Debug enabled/only Component */
-
-/**
- * Meta data for MCA v2.0.0 components.
- */
-struct pmix_mca_base_component_data_2_0_0_t {
-    uint32_t param_field;
-    /**< Metadata parameter bit field filled in by the parameters
-         defined above */
-
-    /** Extra space to allow for expansion in the future without
-        breaking older components. */
-    char reserved[32];
-};
-/** Unversioned convenience typedef; use this name in
-    frameworks/components to stay forward source-compatible */
-typedef struct pmix_mca_base_component_data_2_0_0_t pmix_mca_base_component_data_t;
-/** Versioned convenience typedef */
-typedef struct pmix_mca_base_component_data_2_0_0_t pmix_mca_base_component_data_2_0_0_t;
 
 /**
  * Macro for framework author convenience.

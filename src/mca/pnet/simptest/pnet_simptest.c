@@ -2,7 +2,7 @@
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -27,7 +27,7 @@
 #endif
 #include <time.h>
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "src/class/pmix_list.h"
 #include "src/class/pmix_pointer_array.h"
@@ -35,13 +35,13 @@
 #include "src/include/pmix_socket_errno.h"
 #include "src/mca/base/pmix_mca_base_var.h"
 #include "src/mca/preg/preg.h"
-#include "src/util/alfg.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/name_fns.h"
-#include "src/util/output.h"
+#include "src/util/pmix_alfg.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_show_help.h"
 
 #include "pnet_simptest.h"
 #include "src/mca/pnet/base/base.h"
@@ -53,11 +53,12 @@ static pmix_status_t allocate(pmix_namespace_t *nptr, pmix_info_t info[], size_t
                               pmix_list_t *ilist);
 static pmix_status_t setup_local_network(pmix_namespace_t *nptr, pmix_info_t info[], size_t ninfo);
 
-pmix_pnet_module_t pmix_simptest_module = {.name = "simptest",
-                                           .init = simptest_init,
-                                           .finalize = simptest_finalize,
-                                           .allocate = allocate,
-                                           .setup_local_network = setup_local_network};
+pmix_pnet_module_t pmix_simptest_module = {
+    .name = "simptest",
+    .init = simptest_init,
+    .finalize = simptest_finalize,
+    .allocate = allocate,
+    .setup_local_network = setup_local_network};
 
 /* internal tracking structures */
 typedef struct {
@@ -134,15 +135,15 @@ static pmix_status_t simptest_init(void)
 
     /* if the configuration was given in a file, then build
      * the topology so we can respond to requests */
-    if (NULL == mca_pnet_simptest_component.configfile) {
+    if (NULL == pmix_mca_pnet_simptest_component.configfile) {
         /* we cannot function */
         return PMIX_ERR_INIT;
     }
 
-    fp = fopen(mca_pnet_simptest_component.configfile, "r");
+    fp = fopen(pmix_mca_pnet_simptest_component.configfile, "r");
     if (NULL == fp) {
         pmix_show_help("help-pnet-simptest.txt", "missing-file", true,
-                       mca_pnet_simptest_component.configfile);
+                       pmix_mca_pnet_simptest_component.configfile);
         return PMIX_ERR_FATAL;
     }
     while (NULL != (line = localgetline(fp))) {

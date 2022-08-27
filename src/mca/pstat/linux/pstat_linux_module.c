@@ -15,7 +15,7 @@
  * Copyright (c) 2015      Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -24,7 +24,7 @@
  */
 
 #include "pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 /* This component will only be compiled on Linux, where we are
    guaranteed to have <unistd.h> and friends */
@@ -44,8 +44,8 @@
 
 #include "pstat_linux.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/argv.h"
-#include "src/util/printf.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_printf.h"
 
 /*
  * API functions
@@ -164,7 +164,7 @@ static int query(pid_t pid, pmix_proc_stats_t *stats, pmix_node_stats_t *nstats)
         stats->node = strdup(pmix_globals.hostname);
 
         /* create the stat filename for this proc */
-        numchars = snprintf(data, sizeof(data), "/proc/%d/stat", pid);
+        numchars = pmix_snprintf(data, sizeof(data), "/proc/%d/stat", pid);
         if (numchars >= sizeof(data)) {
             return PMIX_ERROR;
         }
@@ -292,7 +292,7 @@ static int query(pid_t pid, pmix_proc_stats_t *stats, pmix_node_stats_t *nstats)
 
         /* now create the status filename for this proc */
         memset(data, 0, sizeof(data));
-        numchars = snprintf(data, sizeof(data), "/proc/%d/status", pid);
+        numchars = pmix_snprintf(data, sizeof(data), "/proc/%d/status", pid);
         if (numchars >= sizeof(data)) {
             return PMIX_ERROR;
         }
@@ -321,7 +321,7 @@ static int query(pid_t pid, pmix_proc_stats_t *stats, pmix_node_stats_t *nstats)
 
         /* now create the smaps filename for this proc */
         memset(data, 0, sizeof(data));
-        numchars = snprintf(data, sizeof(data), "/proc/%d/smaps", pid);
+        numchars = pmix_snprintf(data, sizeof(data), "/proc/%d/smaps", pid);
         if (numchars >= sizeof(data)) {
             return PMIX_ERROR;
         }
@@ -574,7 +574,7 @@ static void local_getfields(char *dptr, char ***fields)
     }
 
     /* working from this point, find the end of each
-     * alpha-numeric field and store it on the stack.
+     * alphanumeric field and store it on the stack.
      * Then shift across the white space to the start
      * of the next one
      */

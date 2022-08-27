@@ -13,7 +13,7 @@
  * Copyright (c) 2015      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -28,7 +28,7 @@
  */
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "preg_compress.h"
 #include "src/mca/pcompress/pcompress.h"
@@ -42,7 +42,7 @@ static pmix_status_t component_query(pmix_mca_base_module_t **module, int *prior
  * Instantiate the public struct with all of our public information
  * and pointers to our public functions in it
  */
-pmix_mca_base_component_t mca_preg_compress_component = {
+pmix_mca_base_component_t pmix_mca_preg_compress_component = {
     PMIX_PREG_BASE_VERSION_1_0_0,
 
     /* Component name and version */

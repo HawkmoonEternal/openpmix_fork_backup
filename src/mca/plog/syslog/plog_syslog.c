@@ -11,7 +11,7 @@
  *                         All rights reserved.
  * Copyright (c) 2007      Sun Microsystems, Inc.  All rights reserved.
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -20,7 +20,7 @@
  */
 
 #include "pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include <string.h>
 #ifdef HAVE_TIME_H
@@ -36,10 +36,10 @@
 
 #include "src/mca/bfrops/bfrops.h"
 #include "src/server/pmix_server_ops.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/name_fns.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_show_help.h"
 
 #include "plog_syslog.h"
 #include "src/mca/plog/base/base.h"
@@ -52,10 +52,12 @@ static pmix_status_t mylog(const pmix_proc_t *source, const pmix_info_t data[], 
                            void *cbdata);
 
 /* Module def */
-pmix_plog_module_t pmix_plog_syslog_module = {.name = "syslog",
-                                              .init = init,
-                                              .finalize = finalize,
-                                              .log = mylog};
+pmix_plog_module_t pmix_plog_syslog_module = {
+    .name = "syslog",
+    .init = init,
+    .finalize = finalize,
+    .log = mylog
+};
 
 static pmix_status_t init(void)
 {
@@ -85,7 +87,7 @@ static pmix_status_t mylog(const pmix_proc_t *source, const pmix_info_t data[], 
                            void *cbdata)
 {
     size_t n;
-    int pri = mca_plog_syslog_component.level;
+    int pri = pmix_mca_plog_syslog_component.level;
     pmix_status_t rc;
     time_t timestamp = 0;
 
@@ -93,6 +95,8 @@ static pmix_status_t mylog(const pmix_proc_t *source, const pmix_info_t data[], 
     if (NULL == data || 0 == ndata) {
         return PMIX_ERR_NOT_AVAILABLE;
     }
+
+    PMIX_HIDE_UNUSED_PARAMS(cbfunc, cbdata);
 
     /* check directives */
     if (NULL != directives) {
@@ -107,28 +111,28 @@ static pmix_status_t mylog(const pmix_proc_t *source, const pmix_info_t data[], 
 
     /* check to see if there are any syslog entries */
     for (n = 0; n < ndata; n++) {
-        if (0 == strncmp(data[n].key, PMIX_LOG_SYSLOG, PMIX_MAX_KEYLEN)) {
+        if (PMIX_CHECK_KEY(&data[n], PMIX_LOG_SYSLOG)) {
             /* we default to using the local syslog */
-            rc = write_local(source, timestamp, pri, data[n].value.data.string, data, ndata);
-            if (PMIX_SUCCESS == rc) {
-                /* flag that we did this one */
-                PMIX_INFO_OP_COMPLETED(&data[n]);
+            rc = write_local(source, timestamp, pri,
+                             data[n].value.data.string, data, ndata);
+            if (PMIX_SUCCESS != rc) {
+                return rc;
             }
-        } else if (0 == strncmp(data[n].key, PMIX_LOG_LOCAL_SYSLOG, PMIX_MAX_KEYLEN)) {
-            rc = write_local(source, timestamp, pri, data[n].value.data.string, data, ndata);
-            if (PMIX_SUCCESS == rc) {
-                /* flag that we did this one */
-                PMIX_INFO_OP_COMPLETED(&data[n]);
+        } else if (PMIX_CHECK_KEY(&data[n], PMIX_LOG_LOCAL_SYSLOG)) {
+            rc = write_local(source, timestamp, pri,
+                             data[n].value.data.string, data, ndata);
+            if (PMIX_SUCCESS != rc) {
+                return rc;
             }
-        } else if (0 == strncmp(data[n].key, PMIX_LOG_GLOBAL_SYSLOG, PMIX_MAX_KEYLEN)) {
+        } else if (PMIX_CHECK_KEY(&data[n], PMIX_LOG_GLOBAL_SYSLOG)) {
             /* only do this if we are a gateway server */
             if (PMIX_PEER_IS_GATEWAY(pmix_globals.mypeer)) {
-                rc = write_local(source, timestamp, pri, data[n].value.data.string, data, ndata);
-                if (PMIX_SUCCESS == rc) {
-                    /* flag that we did this one */
-                    PMIX_INFO_OP_COMPLETED(&data[n]);
+                rc = write_local(source, timestamp, pri,
+                                 data[n].value.data.string, data, ndata);
+                if (PMIX_SUCCESS != rc) {
+                    return rc;
                 }
-            }
+           }
         }
     }
 

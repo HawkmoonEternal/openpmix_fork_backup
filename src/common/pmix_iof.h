@@ -17,7 +17,7 @@
  * Copyright (c) 2017      Mellanox Technologies. All rights reserved.
  * Copyright (c) 2018      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -51,28 +51,40 @@
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/fd.h"
+#include "src/util/pmix_fd.h"
 
 BEGIN_C_DECLS
 
 /*
  * Maximum size of single msg
  */
-#define PMIX_IOF_BASE_MSG_MAX        4096
-#define PMIX_IOF_BASE_TAG_MAX        256
-#define PMIX_IOF_BASE_TAGGED_OUT_MAX 8192
+#define PMIX_IOF_BASE_MSG_MAX        8192
+#define PMIX_IOF_BASE_TAG_MAX        1024
 #define PMIX_IOF_MAX_INPUT_BUFFERS   50
+#define PMIX_IOF_MAX_RETRIES         4
 
 typedef struct {
     pmix_list_item_t super;
     bool pending;
     bool always_writable;
-    pmix_event_t ev;
+    int numtries;
+    pmix_event_t *ev;
     struct timeval tv;
     int fd;
     pmix_list_t outputs;
 } pmix_iof_write_event_t;
 PMIX_EXPORT PMIX_CLASS_DECLARATION(pmix_iof_write_event_t);
+#define PMIX_IOF_WRITE_EVENT_STATIC_INIT    \
+{                                           \
+    .super = PMIX_LIST_ITEM_STATIC_INIT,    \
+    .pending = false,                       \
+    .always_writable = false,               \
+    .numtries = 0,                          \
+    .ev = NULL,                             \
+    .tv = {0, 0},                           \
+    .fd = 0,                                \
+    .outputs = PMIX_LIST_STATIC_INIT        \
+}
 
 typedef struct {
     pmix_list_item_t super;
@@ -84,10 +96,20 @@ typedef struct {
     bool closed;
 } pmix_iof_sink_t;
 PMIX_EXPORT PMIX_CLASS_DECLARATION(pmix_iof_sink_t);
+#define PMIX_IOF_SINK_STATIC_INIT               \
+{                                               \
+    .super = PMIX_LIST_ITEM_STATIC_INIT,        \
+    .name = {{0}, 0},                           \
+    .tag = PMIX_FWD_NO_CHANNELS,                \
+    .wev = PMIX_IOF_WRITE_EVENT_STATIC_INIT,    \
+    .xoff = false,                              \
+    .exclusive = false,                         \
+    .closed = false                             \
+}
 
 typedef struct {
     pmix_list_item_t super;
-    char data[PMIX_IOF_BASE_TAGGED_OUT_MAX];
+    char *data;
     int numbytes;
 } pmix_iof_write_output_t;
 PMIX_EXPORT PMIX_CLASS_DECLARATION(pmix_iof_write_output_t);
@@ -109,6 +131,18 @@ typedef struct {
 } pmix_iof_read_event_t;
 PMIX_EXPORT PMIX_CLASS_DECLARATION(pmix_iof_read_event_t);
 
+typedef struct {
+    pmix_list_item_t super;
+    pmix_proc_t name;
+    pmix_iof_write_event_t *channel;
+    pmix_iof_flags_t flags;
+    pmix_iof_channel_t stream;
+    bool copystdout;
+    bool copystderr;
+    pmix_byte_object_t bo;
+} pmix_iof_residual_t;
+PMIX_EXPORT PMIX_CLASS_DECLARATION(pmix_iof_residual_t);
+
 /* Write event macro's */
 
 static inline bool pmix_iof_fd_always_ready(int fd)
@@ -119,16 +153,16 @@ static inline bool pmix_iof_fd_always_ready(int fd)
 
 #define PMIX_IOF_SINK_BLOCKSIZE (1024)
 
-#define PMIX_IOF_SINK_ACTIVATE(wev)                                    \
+#define PMIX_IOF_SINK_ACTIVATE(w)                                      \
     do {                                                               \
         struct timeval *tv = NULL;                                     \
-        wev->pending = true;                                           \
-        PMIX_POST_OBJECT(wev);                                         \
-        if (wev->always_writable) {                                    \
+        (w)->pending = true;                                           \
+        PMIX_POST_OBJECT((w));                                         \
+        if ((w)->always_writable) {                                    \
             /* Regular is always write ready. Use timer to activate */ \
-            tv = &wev->tv;                                             \
+            tv = &(w)->tv;                                             \
         }                                                              \
-        if (pmix_event_add(&wev->ev, tv)) {                            \
+        if (pmix_event_add((w)->ev, tv)) {                             \
             PMIX_ERROR_LOG(PMIX_ERR_BAD_PARAM);                        \
         }                                                              \
     } while (0);
@@ -147,9 +181,9 @@ static inline bool pmix_iof_fd_always_ready(int fd)
             (snk)->wev.fd = (fid);                                                                 \
             (snk)->wev.always_writable = pmix_iof_fd_always_ready(fid);                            \
             if ((snk)->wev.always_writable) {                                                      \
-                pmix_event_evtimer_set(pmix_globals.evbase, &(snk)->wev.ev, wrthndlr, (snk));      \
+                pmix_event_evtimer_set(pmix_globals.evbase, (snk)->wev.ev, wrthndlr, (snk));       \
             } else {                                                                               \
-                pmix_event_set(pmix_globals.evbase, &(snk)->wev.ev, (snk)->wev.fd, PMIX_EV_WRITE,  \
+                pmix_event_set(pmix_globals.evbase, (snk)->wev.ev, (snk)->wev.fd, PMIX_EV_WRITE,   \
                                wrthndlr, (snk));                                                   \
             }                                                                                      \
         }                                                                                          \
@@ -207,6 +241,26 @@ static inline bool pmix_iof_fd_always_ready(int fd)
         }                                                                                        \
     } while (0);
 
+#define PMIX_IOF_READ_EVENT_LOCAL(rv, fid, cbfunc, actv)                                         \
+    do {                                                                                         \
+        pmix_iof_read_event_t *rev;                                                              \
+        PMIX_OUTPUT_VERBOSE((1, pmix_client_globals.iof_output, "defining read event at: %s %d", \
+                             __FILE__, __LINE__));                                               \
+        rev = PMIX_NEW(pmix_iof_read_event_t);                                                   \
+        rev->fd = (fid);                                                                         \
+        rev->always_readable = pmix_iof_fd_always_ready(fid);                                    \
+        *(rv) = rev;                                                                             \
+        if (rev->always_readable) {                                                              \
+            pmix_event_evtimer_set(pmix_globals.evbase, &rev->ev, (cbfunc), rev);                \
+        } else {                                                                                 \
+            pmix_event_set(pmix_globals.evbase, &rev->ev, (fid), PMIX_EV_READ, (cbfunc), rev);   \
+        }                                                                                        \
+        if ((actv)) {                                                                            \
+            PMIX_IOF_READ_ACTIVATE(rev)                                                          \
+        }                                                                                        \
+    } while (0);
+
+
 PMIX_EXPORT pmix_status_t pmix_iof_flush(void);
 
 PMIX_EXPORT pmix_status_t pmix_iof_write_output(const pmix_proc_t *name, pmix_iof_channel_t stream,
@@ -222,6 +276,7 @@ PMIX_EXPORT pmix_status_t pmix_iof_process_iof(pmix_iof_channel_t channels,
                                                const pmix_info_t *info, size_t ninfo,
                                                const pmix_iof_req_t *req);
 PMIX_EXPORT void pmix_iof_check_flags(pmix_info_t *info, pmix_iof_flags_t *flags);
+PMIX_EXPORT void pmix_iof_flush_residuals(void);
 
 END_C_DECLS
 

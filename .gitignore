@@ -84,7 +84,18 @@ examples/pubi
 examples/server
 examples/tool
 examples/group
+examples/group_dmodex
 examples/asyncgroup
+examples/hello
+examples/bad_exit
+examples/daemon_error_notify
+examples/launcher
+examples/log
+examples/showkeys
+examples/abi_no_init
+examples/abi_with_init
+examples/group_lcl_cid
+examples/nodeinfo
 
 include/pmix_version.h
 include/pmix_rename.h
@@ -93,8 +104,9 @@ include/pmix_common.h
 src/include/pmix_config.h
 src/include/pmix_config.h.in
 src/include/pmix_config.h.in~
-src/include/frameworks.h
-src/include/dictionary.h
+src/include/pmix_frameworks.h
+src/include/pmix_dictionary.c
+src/include/pmix_dictionary.h
 
 src/mca/pinstalldirs/config/pinstall_dirs.h
 src/mca/pdl/base/static-components.h
@@ -108,23 +120,18 @@ src/tools/plookup/plookup
 src/tools/pps/pps
 src/tools/pquery/pquery
 src/tools/wrapper/pmixcc-wrapper-data.txt
-src/tools/wrapper/pmixcc.1
 src/tools/wrapper/pmixcc
-src/tools/pattrs/pattrs.1
-src/tools/pevent/pevent.1
-src/tools/plookup/plookup.1
-src/tools/pps/pps.1
-src/tools/pquery/pquery.1
 
 
-src/util/show_help_lex.c
 src/util/keyval/keyval_lex.c
+src/util/showhelp/showhelp_lex.c
 
 test/pmi2_client
 test/pmi_client
 test/pmix_client
 test/pmix_test
 test/pmix_client2
+test/pmix_environ
 test/pmix_srv_self
 test/pmix_server_api2
 test/pmix_test_lite
@@ -179,12 +186,26 @@ test/simple/simpfabric
 test/simple/get_put_example
 test/simple/simpvni
 test/simple/hybrid
+test/simple/asyncio
+test/simple/simpqual
 
 test/sshot/daemon
 test/sshot/generate
 test/sshot/server
 test/sshot/mytopo.json
 test/sshot/testcoord
+
+test/util/numa
+test/util/convert
+
+test/test_v2/pmix_test
+test/test_v2/test_fence_basic
+test/test_v2/test_fence_wildcard
+test/test_v2/test_get_basic
+test/test_v2/test_get_peers
+test/test_v2/test_helloworld
+test/test_v2/test_init_fin
+test/test_v2/test_fence_partial
 
 # coverity
 cov-int

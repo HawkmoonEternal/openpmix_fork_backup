@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2008 The University of Tennessee and The University
+ * Copyright (c) 2004-2022 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -21,7 +21,7 @@
  * Copyright (c) 2017      Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -38,7 +38,7 @@
  * to set the affinity of that new child process according to a
  * complex series of rules.  This binding may fail in a myriad of
  * different ways.  A lot of this code deals with reporting that error
- * occurately to the end user.  This is a complex task in itself
+ * accurately to the end user.  This is a complex task in itself
  * because the child process is not "really" an PMIX process -- all
  * error reporting must be proxied up to the parent who can use normal
  * PMIX error reporting mechanisms.
@@ -71,7 +71,7 @@
 
 #include "pmix_config.h"
 #include "pmix.h"
-#include "src/include/types.h"
+#include "src/include/pmix_types.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -112,14 +112,14 @@
 #include <ctype.h>
 
 #include "src/class/pmix_pointer_array.h"
-#include "src/util/error.h"
-#include "src/util/fd.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_fd.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_show_help.h"
 
 #include "src/include/pmix_globals.h"
-#include "src/threads/threads.h"
-#include "src/util/name_fns.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_name_fns.h"
 
 #include "src/mca/pfexec/base/base.h"
 #include "src/mca/pfexec/linux/pfexec_linux.h"
@@ -301,7 +301,11 @@ static void send_error_show_help(int fd, int exit_status, const char *file, cons
    the pipe up to the parent, and the keepalive pipe. */
 static int close_open_file_descriptors(int write_fd, int keepalive)
 {
+#if defined(__OSX__)
+    DIR *dir = opendir("/dev/fd");
+#else  /* Linux */
     DIR *dir = opendir("/proc/self/fd");
+#endif  /* defined(__OSX__) */
     if (NULL == dir) {
         return PMIX_ERR_FILE_OPEN_FAILURE;
     }
@@ -393,7 +397,7 @@ static void do_child(pmix_app_t *app, char **env, pmix_pfexec_child_t *child, in
     set_handler_linux(SIGCHLD);
 
     /* Unblock all signals, for many of the same reasons that we
-       set the default handlers, above.  This is noticable on
+       set the default handlers, above.  This is noticeable on
        Linux where the event library blocks SIGTERM, but we don't
        want that blocked by the launched process. */
     sigprocmask(0, 0, &sigs);
@@ -411,7 +415,9 @@ static void do_child(pmix_app_t *app, char **env, pmix_pfexec_child_t *child, in
     /* Exec the new executable */
     execve(app->cmd, app->argv, env);
     errval = errno;
-    getcwd(dir, sizeof(dir));
+    if (0 != getcwd(dir, sizeof(dir))) {
+        pmix_strncpy(dir, "GETCWD-FAILED", sizeof(dir));
+    }
     send_error_show_help(write_fd, 1, "help-pfexec-linux.txt", "execve error",
                          pmix_globals.hostname, dir, app->cmd, strerror(errval));
     /* Does not return */
@@ -484,6 +490,7 @@ static pmix_status_t do_parent(pmix_app_t *app, pmix_pfexec_child_t *child, int 
                 free(str);
                 return rc;
             }
+            str[msg.msg_str_len] = '\0'; // ensure NULL termination
         }
 
         /* Print out what we got.  We already have a rendered string,

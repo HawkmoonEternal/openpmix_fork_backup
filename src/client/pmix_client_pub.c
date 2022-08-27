@@ -8,7 +8,7 @@
  * Copyright (c) 2016      Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -43,15 +43,15 @@
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #endif
-#include PMIX_EVENT_HEADER
+#include <event.h>
 
 #include "src/class/pmix_list.h"
 #include "src/mca/bfrops/bfrops.h"
 #include "src/mca/ptl/ptl.h"
-#include "src/threads/threads.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/output.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_output.h"
 
 #include "pmix_client_ops.h"
 
@@ -485,6 +485,7 @@ static void wait_cbfunc(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer
     pmix_output_verbose(2, pmix_globals.debug_output,
                         "pmix:client recv callback activated with %d bytes",
                         (NULL == buf) ? -1 : (int) buf->bytes_used);
+    PMIX_HIDE_UNUSED_PARAMS(pr, hdr);
 
     if (NULL == buf) {
         ret = PMIX_ERR_BAD_PARAM;
@@ -535,6 +536,7 @@ static void wait_lookup_cbfunc(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix
     pmix_output_verbose(2, pmix_globals.debug_output,
                         "pmix:client recv callback activated with %d bytes",
                         (NULL == buf) ? -1 : (int) buf->bytes_used);
+    PMIX_HIDE_UNUSED_PARAMS(pr, hdr);
 
     /* set the defaults */
     pdata = NULL;

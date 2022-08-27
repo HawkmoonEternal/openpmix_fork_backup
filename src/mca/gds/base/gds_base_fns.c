@@ -7,7 +7,7 @@
  * Copyright (c) 2018-2019 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -17,12 +17,12 @@
 
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/include/pmix_globals.h"
 
 #include "src/class/pmix_list.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
 
 #include "src/mca/gds/base/base.h"
 #include "src/server/pmix_server_ops.h"
@@ -209,7 +209,7 @@ pmix_status_t pmix_gds_base_store_modex(struct pmix_namespace_t *nspace, pmix_bu
                 break;
             }
             found = false;
-            /* calculate proc form the relative rank */
+            /* calculate proc from the relative rank */
             if (pmix_list_get_size(&trk->nslist) == 1) {
                 found = true;
                 nm = (pmix_nspace_caddy_t *) pmix_list_get_first(&trk->nslist);

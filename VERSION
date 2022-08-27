@@ -4,6 +4,7 @@
 # Copyright (c) 2013      Mellanox Technologies, Inc.
 #                         All rights reserved.
 # Copyright (c) 2014-2016 Intel, Inc. All rights reserved.
+# Copyright (c) 2022      IBM Corporation. All rights reserved.
 
 # This is the VERSION file for PMIx, describing the precise
 # version of PMIx in this distribution.  The various components of
@@ -26,8 +27,34 @@ release=0
 greek=a1
 
 # PMIx Standard Compliance Level
+# The major and minor numbers indicate the version
+# of the official PMIx Standard that is supported
+# by this release. The extension number tracks how
+# far beyond that Standard this implementation has
+# gone. It is incremented whenever a release ADDS
+# something beyond the Standard. An extension of "1"
+# therefore indicates that something beyond the
+# indicated Standard level has been added. A
+# subsequent release that did not further add
+# attributes or APIs to the implementation would
+# retain the same extension value - if it did
+# include further extensions, then the extension
+# value would increment to "2" regardless of the
+# magnitude of the changes.
 std_major=4
 std_minor=1
+std_extension=2
+
+# PMIx Standard ABI Compliance Level(s)
+# The major and minor numbers (MAJOR.MINOR) indicate the version
+# of the official PMIx Standard ABI that is supported
+# by this release. This may be a comma separated list (no spaces)
+# if more than one PMIx Standard ABI level is supported.
+# The PMIx Standard defines a 'stable' and a 'provisional' ABI.
+# Therefore, there are two sets of major/minor values.
+# Since no PMIx Standard ABI exists at the moment, set to "0.0"
+std_abi_stable=0.0
+std_abi_provisional=0.0
 
 # If repo_rev is empty, then the repository version number will be
 # obtained during "make dist" via the "git describe --tags --always"

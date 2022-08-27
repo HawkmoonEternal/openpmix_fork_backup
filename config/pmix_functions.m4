@@ -18,6 +18,8 @@ dnl Copyright (c) 2017      Research Organization for Information Science
 dnl                         and Technology (RIST). All rights reserved.
 dnl
 dnl Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+dnl Copyright (c) 2021      Amazon.com, Inc. or its affiliates.
+dnl                         All Rights reserved.
 dnl $COPYRIGHT$
 dnl
 dnl Additional copyrights may follow
@@ -43,7 +45,7 @@ dnl
 AC_DEFUN([PMIX_CONFIGURE_SETUP],[
 
 # Some helper script functions.  Unfortunately, we cannot use $1 kinds
-# of arugments here because of the m4 substitution.  So we have to set
+# of arguments here because of the m4 substitution.  So we have to set
 # special variable names before invoking the function.  :-\
 
 pmix_show_title() {
@@ -333,98 +335,13 @@ dnl #######################################################################
 dnl #######################################################################
 dnl #######################################################################
 
-# Remove all duplicate -I, -L, and -l flags from the variable named $1
-AC_DEFUN([PMIX_FLAGS_UNIQ],[
-    # 1 is the variable name to be uniq-ized
-    pmix_name=$1
-
-    # Go through each item in the variable and only keep the unique ones
-
-    pmix_count=0
-    for val in ${$1}; do
-        pmix_done=0
-        pmix_i=1
-        pmix_found=0
-
-        # Loop over every token we've seen so far
-
-        pmix_done="`expr $pmix_i \> $pmix_count`"
-        while test "$pmix_found" = "0" && test "$pmix_done" = "0"; do
-
-            # Have we seen this token already?  Prefix the comparison
-            # with "x" so that "-Lfoo" values won't be cause an error.
-
-	    pmix_eval="expr x$val = x\$pmix_array_$pmix_i"
-	    pmix_found=`eval $pmix_eval`
-
-            # Check the ending condition
-
-	    pmix_done="`expr $pmix_i \>= $pmix_count`"
-
-            # Increment the counter
-
-	    pmix_i="`expr $pmix_i + 1`"
-        done
-
-        # Check for special cases where we do want to allow repeated
-        # arguments (per
-        # https://www.open-mpi.org/community/lists/devel/2012/08/11362.php
-        # and
-        # https://github.com/open-mpi/ompi/issues/324).
-
-        case $val in
-        -Xclang|-Xg)
-                pmix_found=0
-                pmix_i=`expr $pmix_count + 1`
-                ;;
-        -framework)
-                pmix_found=0
-                pmix_i=`expr $pmix_count + 1`
-                ;;
-        --param)
-                pmix_found=0
-                pmix_i=`expr $pmix_count + 1`
-                ;;
-        esac
-
-        # If we didn't find the token, add it to the "array"
-
-        if test "$pmix_found" = "0"; then
-	    pmix_eval="pmix_array_$pmix_i=$val"
-	    eval $pmix_eval
-	    pmix_count="`expr $pmix_count + 1`"
-        else
-	    pmix_i="`expr $pmix_i - 1`"
-        fi
-    done
-
-    # Take all the items in the "array" and assemble them back into a
-    # single variable
-
-    pmix_i=1
-    pmix_done="`expr $pmix_i \> $pmix_count`"
-    pmix_newval=
-    while test "$pmix_done" = "0"; do
-        pmix_eval="pmix_newval=\"$pmix_newval \$pmix_array_$pmix_i\""
-        eval $pmix_eval
-
-        pmix_eval="unset pmix_array_$pmix_i"
-        eval $pmix_eval
-
-        pmix_done="`expr $pmix_i \>= $pmix_count`"
-        pmix_i="`expr $pmix_i + 1`"
-    done
-
-    # Done; do the assignment
-
-    pmix_newval="`echo $pmix_newval`"
-    pmix_eval="$pmix_name=\"$pmix_newval\""
-    eval $pmix_eval
-
-    # Clean up
-
-    unset pmix_name pmix_i pmix_done pmix_newval pmix_eval pmix_count
-])dnl
+# PMIX_APPEND(variable, new_argument)
+# ----------------------------------------
+# Append new_argument to variable, assuming a space separated list.
+#
+AC_DEFUN([PMIX_APPEND], [
+  AS_IF([test -z "$$1"], [$1="$2"], [$1="$$1 $2"])
+])
 
 dnl #######################################################################
 dnl #######################################################################
@@ -433,7 +350,7 @@ dnl #######################################################################
 # PMIX_APPEND_UNIQ(variable, new_argument)
 # ----------------------------------------
 # Append new_argument to variable if not already in variable.  This assumes a
-# space seperated list.
+# space separated list.
 #
 # This could probably be made more efficient :(.
 AC_DEFUN([PMIX_APPEND_UNIQ], [
@@ -446,11 +363,7 @@ for arg in $2; do
         fi
     done
     if test "$pmix_found" = "0" ; then
-        if test -z "$$1"; then
-            $1="$arg"
-        else
-            $1="$$1 $arg"
-        fi
+        PMIX_APPEND([$1], [$arg])
     fi
 done
 unset pmix_found
@@ -467,7 +380,7 @@ dnl #######################################################################
 # - the argument does not begin with -I, -L, or -l, or
 # - the argument begins with -I, -L, or -l, and it's not already in variable
 #
-# This macro assumes a space seperated list.
+# This macro assumes a space separated list.
 AC_DEFUN([PMIX_FLAGS_APPEND_UNIQ], [
     PMIX_VAR_SCOPE_PUSH([pmix_tmp pmix_append])
 
@@ -479,7 +392,80 @@ AC_DEFUN([PMIX_FLAGS_APPEND_UNIQ], [
                    AS_IF([test "x$val" = "x$arg"], [pmix_append=0])
                done])
         AS_IF([test "$pmix_append" = "1"],
-              [AS_IF([test -z "$$1"], [$1=$arg], [$1="$$1 $arg"])])
+              [PMIX_APPEND([$1], [$arg])])
+    done
+
+    PMIX_VAR_SCOPE_POP
+])
+
+dnl #######################################################################
+dnl #######################################################################
+dnl #######################################################################
+
+# PMIX_FLAGS_PREPEND_UNIQ(variable, new_argument)
+# ----------------------------------------------
+# Prepend new_argument to variable if:
+#
+# - the argument does not begin with -I, -L, or -l, or
+# - the argument begins with -I, -L, or -l, and it's not already in variable
+#
+# This macro assumes a space separated list.
+AC_DEFUN([PMIX_FLAGS_PREPEND_UNIQ], [
+    PMIX_VAR_SCOPE_PUSH([pmix_tmp pmix_prepend])
+
+    for arg in $2; do
+        pmix_tmp=`echo $arg | cut -c1-2`
+        pmix_prepend=1
+        AS_IF([test "$pmix_tmp" = "-I" || test "$pmix_tmp" = "-L" || test "$pmix_tmp" = "-l"],
+              [for val in ${$1}; do
+                   AS_IF([test "x$val" = "x$arg"], [pmix_prepend=0])
+               done])
+        AS_IF([test "$pmix_prepend" = "1"],
+              [PMIX_APPEND([$1], [$arg])])
+    done
+
+    PMIX_VAR_SCOPE_POP
+])
+
+dnl #######################################################################
+dnl #######################################################################
+dnl #######################################################################
+
+# PMIX_FLAGS_APPEND_MOVE(variable, new_argument)
+# ----------------------------------------------
+# add new_arguments to the end of variable.
+#
+# If an argument in new_arguments does not begin with -I, -L, or -l OR
+# the argument begins with -I, -L, or -l and it is not already in
+# variable, it is appended to variable.
+#
+# If an argument in new_argument begins with a -l and is already in
+# variable, the existing occurrences of the argument are removed from
+# variable and the argument is appended to variable.  This behavior
+# is most useful in LIBS, where ordering matters and being rightmost
+# is usually the right behavior.
+#
+# This macro assumes a space separated list.
+AC_DEFUN([PMIX_FLAGS_APPEND_MOVE], [
+    PMIX_VAR_SCOPE_PUSH([pmix_tmp_variable pmix_tmp pmix_append])
+
+    for arg in $2; do
+        AS_CASE([$arg],
+                [-I*|-L*],
+                [pmix_append=1
+                 for val in ${$1} ; do
+                     AS_IF([test "x$val" = "x$arg"], [pmix_append=0])
+                 done
+                 AS_IF([test $pmix_append -eq 1], [PMIX_APPEND([$1], [$arg])])],
+                [-l*],
+                [pmix_tmp_variable=
+                 for val in ${$1}; do
+                     AS_IF([test "x$val" != "x$arg"],
+                           [PMIX_APPEND([pmix_tmp_variable], [$val])])
+                 done
+                 PMIX_APPEND([pmix_tmp_variable], [$arg])
+                 $1="$pmix_tmp_variable"],
+                [PMIX_APPEND([$1], [$arg])])
     done
 
     PMIX_VAR_SCOPE_POP
@@ -663,7 +649,7 @@ AC_DEFUN([PMIX_COMPUTE_MAX_VALUE], [
                     overflow=1
                 fi
             else
-                # stil negative.  Time to give up.
+                # still negative.  Time to give up.
                 overflow=1
             fi
             pmix_num_bits=0

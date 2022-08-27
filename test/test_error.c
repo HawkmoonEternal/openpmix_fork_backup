@@ -22,6 +22,9 @@ static void comfail_errhandler(size_t evhdlr_registration_id, pmix_status_t stat
 {
     TEST_ERROR(("comfail errhandler called for error status = %d ninfo = %lu", status,
                 (unsigned long) ninfo));
+
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, source, info, results, nresults);
+
     if (NULL != cbfunc) {
         cbfunc(PMIX_SUCCESS, NULL, 0, NULL, NULL, cbdata);
     }
@@ -33,6 +36,9 @@ static void timeout_errhandler(size_t evhdlr_registration_id, pmix_status_t stat
                                pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
     TEST_ERROR(("timeout errhandler called for error status = %d ninfo = %d", status, (int) ninfo));
+
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, source, info, results, nresults);
+
     if (NULL != cbfunc) {
         cbfunc(PMIX_SUCCESS, NULL, 0, NULL, NULL, cbdata);
     }
@@ -41,6 +47,9 @@ static void timeout_errhandler(size_t evhdlr_registration_id, pmix_status_t stat
 static void op1_callbk(pmix_status_t status, void *cbdata)
 {
     TEST_VERBOSE(("op1_callbk CALLED WITH STATUS %d", status));
+
+    PMIX_HIDE_UNUSED_PARAMS(cbdata);
+
     done = true;
 }
 
@@ -59,9 +68,11 @@ int test_error(char *my_nspace, int my_rank, test_params params)
     pmix_status_t status;
     pmix_proc_t source;
 
+    PMIX_HIDE_UNUSED_PARAMS(params);
+
     TEST_VERBOSE(("test-error: running  error handling test cases"));
     /* register specific client error handlers and test their invocation
-     * by  trigerring events  from server side*/
+     * by  triggering events  from server side*/
     status = PMIX_ERR_TIMEOUT;
     PMIx_Register_event_handler(&status, 1, NULL, 0, timeout_errhandler, errhandler_reg_callbk1,
                                 &errhandler_refs[0]);
@@ -72,7 +83,7 @@ int test_error(char *my_nspace, int my_rank, test_params params)
                                 &errhandler_refs[1]);
     /* inject error from client */
     done = false;
-    (void) strncpy(source.nspace, my_nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(source.nspace, my_nspace, PMIX_MAX_NSLEN);
     source.rank = my_rank;
     /* change error value to test other error notifications */
     PMIx_Notify_event(TEST_NOTIFY, &source, PMIX_RANGE_NAMESPACE, NULL, 0, op1_callbk, NULL);

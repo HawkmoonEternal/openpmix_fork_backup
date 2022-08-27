@@ -18,10 +18,10 @@
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2015-2018 Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2020      Triad National Security, LLC.
+ * Copyright (c) 2020-2021 Triad National Security, LLC.
  *                         All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "src/util/output.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
 
 #include "server_callbacks.h"
@@ -50,6 +50,8 @@ int main(int argc, char **argv)
     char **client_env = NULL;
     char **client_argv = NULL;
     int rc, i;
+    test_params params;
+    validation_params val_params;
     struct stat stat_buf;
     int test_fail = 0;
     char *tmp;
@@ -102,7 +104,7 @@ int main(int argc, char **argv)
     }
 
     // fork of other servers happens below in server_init
-    if (PMIX_SUCCESS != (rc = server_init(&params, &val_params))) {
+    if (PMIX_SUCCESS != (rc = server_init(&val_params))) {
         free_params(&params, &val_params);
         return rc;
     }
@@ -162,7 +164,7 @@ done:
 
     if (!test_fail && !test_timeout) {
         if (0 == my_server_id) {
-            TEST_OUTPUT(("Test SUCCEEDED! All servers completed normally.", my_server_id));
+            TEST_OUTPUT(("Test SUCCEEDED! All servers completed normally."));
         }
     }
     else if (!test_timeout) {

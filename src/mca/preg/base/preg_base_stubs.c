@@ -10,7 +10,7 @@
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -29,8 +29,8 @@
 #include "src/include/pmix_globals.h"
 #include "src/mca/bfrops/bfrops.h"
 #include "src/mca/preg/base/base.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
 
 pmix_status_t pmix_preg_base_generate_node_regex(const char *input, char **regex)
 {
@@ -153,4 +153,18 @@ pmix_status_t pmix_preg_base_unpack(pmix_buffer_t *buffer, char **regex)
     /* must just be a string */
     PMIX_BFROPS_UNPACK(rc, pmix_globals.mypeer, buffer, regex, &cnt, PMIX_STRING);
     return rc;
+}
+
+pmix_status_t pmix_preg_base_release(char *regexp)
+{
+    pmix_preg_base_active_module_t *active;
+
+    PMIX_LIST_FOREACH (active, &pmix_preg_globals.actives, pmix_preg_base_active_module_t) {
+        if (NULL != active->module->release) {
+            if (PMIX_SUCCESS == active->module->release(regexp)) {
+                return PMIX_SUCCESS;
+            }
+        }
+    }
+    return PMIX_ERR_BAD_PARAM;
 }

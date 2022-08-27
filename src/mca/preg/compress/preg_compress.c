@@ -4,7 +4,7 @@
  * Copyright (c) 2018      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -27,7 +27,7 @@
 #include <ctype.h>
 
 #include "include/pmix.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "src/class/pmix_list.h"
 #include "src/client/pmix_client_ops.h"
@@ -35,9 +35,9 @@
 #include "src/include/pmix_socket_errno.h"
 #include "src/mca/bfrops/base/base.h"
 #include "src/mca/gds/gds.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/output.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_output.h"
 
 #include "preg_compress.h"
 #include "src/mca/pcompress/pcompress.h"
@@ -50,15 +50,19 @@ static pmix_status_t parse_procs(const char *regexp, char ***procs);
 static pmix_status_t copy(char **dest, size_t *len, const char *input);
 static pmix_status_t pack(pmix_buffer_t *buffer, const char *input);
 static pmix_status_t unpack(pmix_buffer_t *buffer, char **regex);
+static pmix_status_t release(char *regexp);
 
-pmix_preg_module_t pmix_preg_compress_module = {.name = "compress",
-                                                .generate_node_regex = generate_node_regex,
-                                                .generate_ppn = generate_ppn,
-                                                .parse_nodes = parse_nodes,
-                                                .parse_procs = parse_procs,
-                                                .copy = copy,
-                                                .pack = pack,
-                                                .unpack = unpack};
+pmix_preg_module_t pmix_preg_compress_module = {
+    .name = "compress",
+    .generate_node_regex = generate_node_regex,
+    .generate_ppn = generate_ppn,
+    .parse_nodes = parse_nodes,
+    .parse_procs = parse_procs,
+    .copy = copy,
+    .pack = pack,
+    .unpack = unpack,
+    .release = release
+};
 
 #define PREG_COMPRESS_PREFIX "blob: component=zlib: size="
 
@@ -310,3 +314,27 @@ static pmix_status_t unpack(pmix_buffer_t *buffer, char **regex)
 
     return PMIX_SUCCESS;
 }
+
+static pmix_status_t release(char *regexp)
+{
+    int idx;
+
+    if (NULL == regexp) {
+        return PMIX_SUCCESS;
+    }
+
+    if (0 != strncmp(regexp, "blob", 4)) {
+        return PMIX_ERR_TAKE_NEXT_OPTION;
+    }
+    idx = strlen(regexp) + 1; // step over the NULL terminator
+
+    /* ensure we were the one who generated this blob */
+    if (0 != strncmp(&regexp[idx], "component=zlib:", strlen("component=zlib:"))) {
+        return PMIX_ERR_TAKE_NEXT_OPTION;
+    }
+
+    // just free it
+    free(regexp);
+    return PMIX_SUCCESS;
+}
+

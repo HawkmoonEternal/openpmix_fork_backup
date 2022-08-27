@@ -17,7 +17,7 @@
  * Copyright (c) 2014-2015 Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -47,17 +47,18 @@
 #    include <netdb.h>
 #endif
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/class/pmix_list.h"
-#include "src/mca/base/base.h"
+#include "src/include/pmix_globals.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/base/pmix_mca_base_component_repository.h"
 #include "src/mca/mca.h"
 #include "src/mca/pdl/base/base.h"
 #include "src/mca/pinstalldirs/pinstalldirs.h"
-#include "src/util/argv.h"
-#include "src/util/output.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_show_help.h"
 
 #if PMIX_HAVE_PDL_SUPPORT
 /*
@@ -77,8 +78,6 @@ static int component_find_check(pmix_mca_base_framework_t *framework,
 struct pmix_mca_base_open_only_dummy_component_t {
     /** MCA base component */
     pmix_mca_base_component_t version;
-    /** MCA base data */
-    pmix_mca_base_component_data_t data;
 };
 typedef struct pmix_mca_base_open_only_dummy_component_t pmix_mca_base_open_only_dummy_component_t;
 
@@ -104,6 +103,7 @@ int pmix_mca_base_component_find(const char *directory, pmix_mca_base_framework_
     pmix_mca_base_component_list_item_t *cli;
     bool include_mode = true;
     int ret;
+    PMIX_HIDE_UNUSED_PARAMS(open_dso_components);
 
     pmix_output_verbose(PMIX_MCA_BASE_VERBOSE_COMPONENT, framework->framework_output,
                         "mca: base: component_find: searching %s for %s components", directory,
@@ -168,7 +168,7 @@ int pmix_mca_base_component_find_finalize(void)
     return PMIX_SUCCESS;
 }
 
-int pmix_mca_base_components_filter(pmix_mca_base_framework_t *framework, uint32_t filter_flags)
+int pmix_mca_base_components_filter(pmix_mca_base_framework_t *framework)
 {
     pmix_list_t *components = &framework->framework_components;
     int output_id = framework->framework_output;
@@ -179,7 +179,7 @@ int pmix_mca_base_components_filter(pmix_mca_base_framework_t *framework, uint32
 
     assert(NULL != components);
 
-    if (0 == filter_flags && NULL == framework->framework_selection) {
+    if (NULL == framework->framework_selection) {
         return PMIX_SUCCESS;
     }
 
@@ -191,31 +191,16 @@ int pmix_mca_base_components_filter(pmix_mca_base_framework_t *framework, uint32
 
     PMIX_LIST_FOREACH_SAFE (cli, next, components, pmix_mca_base_component_list_item_t) {
         const pmix_mca_base_component_t *component = cli->cli_component;
-        pmix_mca_base_open_only_dummy_component_t *dummy
-            = (pmix_mca_base_open_only_dummy_component_t *) cli->cli_component;
 
         can_use = use_component(include_mode, (const char **) requested_component_names,
                                 cli->cli_component->pmix_mca_component_name);
 
-        if (!can_use || (filter_flags & dummy->data.param_field) != filter_flags) {
-            if (can_use && (filter_flags & PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT)
-                && !(PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT & dummy->data.param_field)) {
-                pmix_output_verbose(PMIX_MCA_BASE_VERBOSE_COMPONENT, output_id,
-                                    "pmix:mca: base: components_filter: "
-                                    "(%s) Component %s is *NOT* Checkpointable - Disabled",
-                                    component->reserved, component->pmix_mca_component_name);
-            }
-
+        if (!can_use) {
             pmix_list_remove_item(components, &cli->super);
 
             pmix_mca_base_component_unload(component, output_id);
 
             PMIX_RELEASE(cli);
-        } else if (filter_flags & PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT) {
-            pmix_output_verbose(PMIX_MCA_BASE_VERBOSE_COMPONENT, output_id,
-                                "pmix:mca: base: components_filter: "
-                                "(%s) Component %s is Checkpointable",
-                                component->reserved, component->pmix_mca_component_name);
         }
     }
 
@@ -239,7 +224,7 @@ int pmix_mca_base_components_filter(pmix_mca_base_framework_t *framework, uint32
  * the specified type (and possibly of a given name).
  *
  * Note that we use our own path iteration functionality because we
- * need to look at companion .ompi_info files in the same directory as
+ * need to look at companion .pmix_info files in the same directory as
  * the library to generate dependencies, etc.
  */
 static void find_dyn_components(const char *path, pmix_mca_base_framework_t *framework,
@@ -254,7 +239,7 @@ static void find_dyn_components(const char *path, pmix_mca_base_framework_t *fra
                         framework->framework_name);
 
     if (NULL != path) {
-        ret = pmix_mca_base_component_repository_add(path);
+        ret = pmix_mca_base_component_repository_add(framework->framework_project, path);
         if (PMIX_SUCCESS != ret) {
             return;
         }

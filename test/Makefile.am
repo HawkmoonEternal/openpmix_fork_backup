@@ -14,6 +14,9 @@
 # Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
 # Copyright (c) 2018      Research Organization for Information Science
 #                         and Technology (RIST). All rights reserved.
+# Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+# Copyright (c) 2022      Amazon.com, Inc. or its affiliates.
+#                         All Rights reserved.
 # $COPYRIGHT$
 #
 # Additional copyrights may follow
@@ -24,7 +27,7 @@
 if !WANT_HIDDEN
 # these tests use internal symbols
 # use --disable-visibility
-SUBDIRS = simple sshot
+SUBDIRS = simple sshot util
 
 if WANT_PYTHON_BINDINGS
 SUBDIRS += python
@@ -37,6 +40,7 @@ headers = test_common.h cli_stages.h server_callbacks.h utils.h test_fence.h \
         test_replace.h test_internal.h test_server.h
 
 AM_CPPFLAGS = -I$(top_builddir)/src -I$(top_builddir)/src/include -I$(top_builddir)/src/api
+# we do NOT want picky compilers down here
 
 noinst_SCRIPTS = pmix_client_otheruser.sh \
 	run_tests00.pl \
@@ -64,7 +68,8 @@ noinst_PROGRAMS =
 check_PROGRAMS = \
     pmix_test \
     pmix_client \
-    pmix_regex
+    pmix_regex \
+    pmix_environ
 
 TESTS = \
 	run_tests00.pl \
@@ -80,14 +85,15 @@ TESTS = \
 	run_tests10.pl \
 	run_tests11.pl \
 	run_tests12.pl \
-	run_tests13.pl
+	run_tests13.pl \
+	pmix_environ
 #	run_tests14.pl \
 #	run_tests15.pl
 
 
 ##########################
 
-noinst_PROGRAMS += pmix_test pmix_client pmix_regex
+noinst_PROGRAMS += pmix_test pmix_client pmix_regex pmix_environ
 
 pmix_test_SOURCES = $(headers) \
         pmix_test.c test_common.c cli_stages.c server_callbacks.c test_server.c utils.c
@@ -107,5 +113,9 @@ pmix_regex_SOURCES = $(headers) \
 pmix_regex_LDFLAGS = $(PMIX_PKG_CONFIG_LDFLAGS)
 pmix_regex_LDADD = \
     $(top_builddir)/src/libpmix.la
+
+pmix_environ_SOURCES = pmix_environ.c
+pmix_environ_LDFLAGS = $(PMIX_PKG_CONFIG_LDFLAGS)
+pmix_environ_LDADD = $(top_builddir)/src/libpmix.la
 
 EXTRA_DIST = $(noinst_SCRIPTS)

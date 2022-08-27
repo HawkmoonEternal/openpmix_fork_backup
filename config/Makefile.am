@@ -16,7 +16,7 @@
 # Copyright (c) 2010      Oracle and/or its affiliates.  All rights
 #                         reserved.
 # Copyright (c) 2016      Intel, Inc. All rights reserved.
-# Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+# Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
 # Copyright (c) 2021      IBM Corporation.  All rights reserved.
 #
 # $COPYRIGHT$
@@ -27,30 +27,12 @@
 #
 
 EXTRA_DIST = \
-	pmix_get_version.sh \
-	distscript.sh \
-	getdate.sh \
-	md2nroff.pl \
-	pmix_check_attributes.m4 \
-	pmix_check_broken_qsort.m4 \
-	pmix_check_compiler_version.m4 \
-	pmix_check_icc.m4 \
-	pmix_check_ident.m4 \
-	pmix_check_package.m4 \
-	pmix_check_vendor.m4 \
-	pmix_check_visibility.m4 \
-	pmix_check_lock.m4 \
-	pmix_config_subdir.m4 \
-	pmix_ensure_contains_optflags.m4 \
-	pmix_functions.m4 \
-	pmix.m4 \
-	pmix_search_libs.m4 \
-	pmix_check_cflags.m4 \
-	pmix_setup_cc.m4 \
-	pmix_setup_libevent.m4 \
-	pmix_mca_priority_sort.pl \
-	mca_library_paths.txt \
+    distscript.sh \
+    getdate.sh \
+    pmix_get_version.sh \
+    pmix_mca_priority_sort.pl \
+    mca_library_paths.txt \
     from-savannah/upstream-config.guess \
     from-savannah/upstream-config.sub \
-	ltmain_pgi_tp.diff \
-	ltmain_nag_pthread.diff
+    ltmain_pgi_tp.diff \
+    ltmain_nag_pthread.diff

@@ -2,6 +2,7 @@
  * Copyright (c) 2004-2010 The Trustees of Indiana University.
  *                         All rights reserved.
  * Copyright (c) 2019-2020 Intel, Inc.  All rights reserved.
+ * Copyright (c) 2022      Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -22,7 +23,7 @@
 
 #include "pmix_config.h"
 
-#include "src/util/output.h"
+#include "src/util/pmix_output.h"
 
 #include "src/mca/mca.h"
 #include "src/mca/pcompress/pcompress.h"
@@ -32,7 +33,7 @@ extern "C" {
 #endif
 
 /* the component must be visible data for the linker to find it */
-PMIX_EXPORT extern pmix_mca_base_component_t mca_pcompress_zlib_component;
+PMIX_EXPORT extern pmix_mca_base_component_t pmix_mca_pcompress_zlib_component;
 extern pmix_compress_base_module_t pmix_pcompress_zlib_module;
 
 #if defined(c_plusplus) || defined(__cplusplus)

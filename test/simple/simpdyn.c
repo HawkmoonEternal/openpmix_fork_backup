@@ -15,7 +15,7 @@
  * Copyright (c) 2011      Oak Ridge National Labs.  All rights reserved.
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015      Mellanox Technologies, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -33,10 +33,11 @@
 #include <unistd.h>
 
 #include "src/class/pmix_object.h"
-#include "src/util/argv.h"
-#include "src/util/output.h"
+#include "src/include/pmix_globals.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/printf.h"
+#include "src/util/pmix_printf.h"
 
 static pmix_proc_t myproc;
 
@@ -53,6 +54,7 @@ int main(int argc, char **argv)
     pmix_proc_t *peers;
     size_t npeers, ntmp = 0;
     char *nodelist;
+    PMIX_HIDE_UNUSED_PARAMS(argc, argv);
 
     gethostname(hostname, sizeof(hostname));
 
@@ -65,7 +67,7 @@ int main(int argc, char **argv)
     pmix_output(0, "Client ns %s rank %d: Running", myproc.nspace, myproc.rank);
 
     /* get our job size */
-    (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
     if (PMIX_SUCCESS != (rc = PMIx_Get(&proc, PMIX_JOB_SIZE, NULL, 0, &val))) {
         pmix_output(0, "Client ns %s rank %d: PMIx_Get job size failed: %s", myproc.nspace,
@@ -78,7 +80,7 @@ int main(int argc, char **argv)
 
     /* call fence to sync */
     PMIX_PROC_CONSTRUCT(&proc);
-    (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
     if (PMIX_SUCCESS != (rc = PMIx_Fence(&proc, 1, NULL, 0))) {
         pmix_output(0, "Client ns %s rank %d: PMIx_Fence failed: %d", myproc.nspace, myproc.rank,
@@ -105,7 +107,7 @@ int main(int argc, char **argv)
         PMIX_APP_FREE(app, 1);
 
         /* get their job size */
-        (void) strncpy(proc.nspace, nsp2, PMIX_MAX_NSLEN);
+        pmix_strncpy(proc.nspace, nsp2, PMIX_MAX_NSLEN);
         proc.rank = PMIX_RANK_WILDCARD;
         val = NULL;
         if (PMIX_SUCCESS != (rc = PMIx_Get(&proc, PMIX_JOB_SIZE, NULL, 0, &val)) || NULL == val) {
@@ -182,7 +184,7 @@ int main(int argc, char **argv)
 done:
     /* call fence to sync */
     PMIX_PROC_CONSTRUCT(&proc);
-    (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
     if (PMIX_SUCCESS != (rc = PMIx_Fence(&proc, 1, NULL, 0))) {
         pmix_output(0, "Client ns %s rank %d: PMIx_Fence failed: %d", myproc.nspace, myproc.rank,

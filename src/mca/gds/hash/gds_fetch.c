@@ -5,8 +5,8 @@
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2018-2020 Mellanox Technologies, Inc.
  *                         All rights reserved.
- *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
+ * Copyright (c) 2022      Triad National Security, LLC. All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -31,7 +31,7 @@
 #endif
 #include <time.h>
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "src/class/pmix_list.h"
 #include "src/client/pmix_client_ops.h"
@@ -41,102 +41,122 @@
 #include "src/mca/preg/preg.h"
 #include "src/mca/ptl/base/base.h"
 #include "src/server/pmix_server_ops.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/hash.h"
-#include "src/util/name_fns.h"
-#include "src/util/output.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_hash.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
 
 #include "gds_hash.h"
 #include "src/mca/gds/base/base.h"
 
-static pmix_status_t dohash(pmix_hash_table_t *ht, const char *key, pmix_rank_t rank,
-                            int skip_genvals, pmix_list_t *kvs)
+pmix_status_t pmix_gds_hash_fetch_sessioninfo(const char *key,
+                                              pmix_job_t *trk,
+                                              pmix_info_t *info, size_t ninfo,
+                                              pmix_list_t *kvs)
 {
+    size_t n, nds;
     pmix_status_t rc;
-    pmix_value_t *val;
-    pmix_kval_t *kv, *k2;
-    pmix_info_t *info;
-    size_t n, ninfo;
-    bool found;
+    pmix_list_t *sessionlist = NULL;
+    uint32_t sid = UINT32_MAX;
+    pmix_session_t *sptr;
+    pmix_kval_t *kv, *kp2;
+    pmix_info_t *iptr;
 
-    rc = pmix_hash_fetch(ht, rank, key, &val);
-    if (PMIX_SUCCESS == rc) {
-        /* if the key was NULL, then all found keys will be
-         * returned as a pmix_data_array_t in the value */
-        if (NULL == key) {
-            if (NULL == val->data.darray || PMIX_INFO != val->data.darray->type
-                || 0 == val->data.darray->size) {
-                PMIX_ERROR_LOG(PMIX_ERR_NOT_FOUND);
-                PMIX_RELEASE(val);
-                return PMIX_ERR_NOT_FOUND;
+    pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
+                        "FETCHING SESSION INFO");
+
+    /* scan for the nodeID or hostname to identify
+     * which node they are asking about */
+    for (n = 0; n < ninfo; n++) {
+        if (PMIX_CHECK_KEY(&info[n], PMIX_SESSION_ID)) {
+            PMIX_VALUE_GET_NUMBER(rc, &info[n].value, sid, uint32_t);
+            if (PMIX_SUCCESS != rc) {
+                return rc;
             }
-            /* if they want the value returned in its array form,
-             * then we are done */
-            if (2 == skip_genvals) {
-                kv = PMIX_NEW(pmix_kval_t);
-                if (NULL == kv) {
-                    PMIX_VALUE_RELEASE(val);
-                    return PMIX_ERR_NOMEM;
-                }
-                kv->value = val;
-                pmix_list_append(kvs, &kv->super);
-                return PMIX_SUCCESS;
-            }
-            info = (pmix_info_t *) val->data.darray->array;
-            ninfo = val->data.darray->size;
-            for (n = 0; n < ninfo; n++) {
-                /* if the rank is UNDEF, then we don't want
-                 * anything that starts with "pmix" */
-                if (1 == skip_genvals && 0 == strncmp(info[n].key, "pmix", 4)) {
-                    continue;
-                }
-                /* see if we already have this on the list */
-                found = false;
-                PMIX_LIST_FOREACH (k2, kvs, pmix_kval_t) {
-                    if (PMIX_CHECK_KEY(&info[n], k2->key)) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (found) {
-                    continue;
-                }
-                kv = PMIX_NEW(pmix_kval_t);
-                if (NULL == kv) {
-                    PMIX_VALUE_RELEASE(val);
-                    return PMIX_ERR_NOMEM;
-                }
-                kv->key = strdup(info[n].key);
-                kv->value = (pmix_value_t *) malloc(sizeof(pmix_value_t));
-                if (NULL == kv->value) {
-                    PMIX_VALUE_RELEASE(val);
-                    PMIX_RELEASE(kv);
-                    return PMIX_ERR_NOMEM;
-                }
-                PMIX_BFROPS_VALUE_XFER(rc, pmix_globals.mypeer, kv->value, &info[n].value);
-                if (PMIX_SUCCESS != rc) {
-                    PMIX_ERROR_LOG(rc);
-                    PMIX_VALUE_RELEASE(val);
-                    PMIX_RELEASE(kv);
-                    return rc;
-                }
-                pmix_list_append(kvs, &kv->super);
-            }
-            PMIX_VALUE_RELEASE(val);
-        } else {
-            kv = PMIX_NEW(pmix_kval_t);
-            if (NULL == kv) {
-                PMIX_VALUE_RELEASE(val);
-                return PMIX_ERR_NOMEM;
-            }
-            kv->key = strdup(key);
-            kv->value = val;
-            pmix_list_append(kvs, &kv->super);
+            break;
         }
     }
-    return rc;
+
+    if (UINT32_MAX == sid) {
+        /* they just want the session info from this job. */
+        if (NULL == trk->session) {
+            return PMIX_ERR_NOT_FOUND;
+        }
+        sessionlist = &trk->session->sessioninfo;
+    } else {
+        /* we cannot use the "check_session" function as we don't want
+         * to create a session that doesn't yet exist */
+        PMIX_LIST_FOREACH(sptr, &pmix_mca_gds_hash_component.mysessions, pmix_session_t) {
+            if (sptr->session == sid) {
+                sessionlist = &sptr->sessioninfo;
+                break;
+            }
+        }
+    }
+    if (NULL == sessionlist) {
+        return PMIX_ERR_NOT_FOUND;
+    }
+
+    if (NULL == key) {
+        if (trk->nptr->version.major < 4 ||
+            (4 == trk->nptr->version.major &&
+             1 == trk->nptr->version.minor)) {
+            /* we can only transfer the data as independent values */
+            PMIX_LIST_FOREACH(kv, sessionlist, pmix_kval_t) {
+                kp2 = PMIX_NEW(pmix_kval_t);
+                kp2->key = strdup(kv->key);
+                PMIX_VALUE_XFER(rc, kp2->value, kv->value);
+                if (PMIX_SUCCESS != rc) {
+                    PMIX_RELEASE(kp2);
+                    return rc;
+                }
+                pmix_list_append(kvs, &kp2->super);
+            }
+        } else {
+            /* we return it as an info array */
+            PMIX_KVAL_NEW(kp2, PMIX_SESSION_INFO_ARRAY);
+            kp2->value->type = PMIX_DATA_ARRAY;
+            nds = pmix_list_get_size(sessionlist) + 1;
+            PMIX_DATA_ARRAY_CREATE(kp2->value->data.darray, nds, PMIX_INFO);
+            iptr = (pmix_info_t*)kp2->value->data.darray->array;
+            /* first element has to be the session id */
+            PMIX_INFO_LOAD(&iptr[0], PMIX_SESSION_ID, &sid, PMIX_UINT32);
+            /* populate the rest of the array */
+            n = 1;
+            PMIX_LIST_FOREACH(kv, sessionlist, pmix_kval_t) {
+                PMIX_LOAD_KEY(iptr[n].key, kv->key);
+                rc = PMIx_Value_xfer(&iptr[n].value, kv->value);
+                if (PMIX_SUCCESS != rc) {
+                    PMIX_RELEASE(kp2);
+                    return rc;
+                }
+                ++n;
+            }
+            pmix_list_append(kvs, &kp2->super);
+        }
+        return PMIX_SUCCESS;
+    } else {
+        /* find the specific key */
+        PMIX_LIST_FOREACH(kv, sessionlist, pmix_kval_t) {
+            if (PMIX_CHECK_KEY(kv, key)) {
+                kp2 = PMIX_NEW(pmix_kval_t);
+                kp2->key = strdup(kv->key);
+                PMIX_VALUE_XFER(rc, kp2->value, kv->value);
+                if (PMIX_SUCCESS != rc) {
+                    PMIX_RELEASE(kp2);
+                    return rc;
+                }
+                char *tmp = PMIx_Value_string(kp2->value);
+                free(tmp);
+                pmix_list_append(kvs, &kp2->super);
+                return PMIX_SUCCESS;
+            }
+        }
+    }
+
+    return PMIX_ERR_NOT_FOUND;
 }
 
 pmix_status_t pmix_gds_hash_fetch_nodeinfo(const char *key, pmix_job_t *trk, pmix_list_t *tgt,
@@ -152,7 +172,8 @@ pmix_status_t pmix_gds_hash_fetch_nodeinfo(const char *key, pmix_job_t *trk, pmi
     pmix_data_array_t *darray;
     pmix_info_t *iptr;
 
-    pmix_output_verbose(2, pmix_gds_base_framework.framework_output, "FETCHING NODE INFO");
+    pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
+                        "FETCHING NODE INFO");
 
     /* scan for the nodeID or hostname to identify
      * which node they are asking about */
@@ -180,8 +201,9 @@ pmix_status_t pmix_gds_hash_fetch_nodeinfo(const char *key, pmix_job_t *trk, pmi
                  * info must be provided as a data_array with a key
                  * of the node's name as earlier versions don't understand
                  * node_info arrays */
-                if (trk->nptr->version.major < 3
-                    || (3 == trk->nptr->version.major && 0 == trk->nptr->version.minor)) {
+                if (trk->nptr->version.major < 3 ||
+                    (3 == trk->nptr->version.major &&
+                     0 == trk->nptr->version.minor)) {
                     if (NULL == nd->hostname) {
                         /* skip this one */
                         continue;
@@ -223,7 +245,7 @@ pmix_status_t pmix_gds_hash_fetch_nodeinfo(const char *key, pmix_job_t *trk, pmi
                                         "%s gds:hash:fetch_nodearray adding key %s",
                                         PMIX_NAME_PRINT(&pmix_globals.myid), kp2->key);
                     PMIX_LOAD_KEY(iptr[n].key, kp2->key);
-                    rc = pmix_value_xfer(&iptr[n].value, kp2->value);
+                    rc = PMIx_Value_xfer(&iptr[n].value, kp2->value);
                     if (PMIX_SUCCESS != rc) {
                         PMIX_ERROR_LOG(rc);
                         PMIX_DATA_ARRAY_FREE(darray);
@@ -270,8 +292,9 @@ pmix_status_t pmix_gds_hash_fetch_nodeinfo(const char *key, pmix_job_t *trk, pmi
          * info must be provided as a data_array with a key
          * of the node's name as earlier versions don't understand
          * node_info arrays */
-        if (trk->nptr->version.major < 3
-            || (3 == trk->nptr->version.major && 0 == trk->nptr->version.minor)) {
+        if (trk->nptr->version.major < 3 ||
+            (3 == trk->nptr->version.major &&
+             0 == trk->nptr->version.minor)) {
             if (NULL == nd->hostname) {
                 kv->key = strdup(pmix_globals.hostname);
             } else {
@@ -313,7 +336,7 @@ pmix_status_t pmix_gds_hash_fetch_nodeinfo(const char *key, pmix_job_t *trk, pmi
                                 "%s gds:hash:fetch_nodearray adding key %s",
                                 PMIX_NAME_PRINT(&pmix_globals.myid), kp2->key);
             PMIX_LOAD_KEY(iptr[n].key, kp2->key);
-            rc = pmix_value_xfer(&iptr[n].value, kp2->value);
+            rc = PMIx_Value_xfer(&iptr[n].value, kp2->value);
             if (PMIX_SUCCESS != rc) {
                 PMIX_ERROR_LOG(rc);
                 PMIX_DATA_ARRAY_FREE(darray);
@@ -343,7 +366,7 @@ pmix_status_t pmix_gds_hash_fetch_nodeinfo(const char *key, pmix_job_t *trk, pmi
                 PMIX_RELEASE(kv);
                 return PMIX_ERR_NOMEM;
             }
-            rc = pmix_value_xfer(kv->value, kp2->value);
+            rc = PMIx_Value_xfer(kv->value, kp2->value);
             if (PMIX_SUCCESS != rc) {
                 PMIX_ERROR_LOG(rc);
                 PMIX_RELEASE(kv);
@@ -368,7 +391,8 @@ pmix_status_t pmix_gds_hash_fetch_appinfo(const char *key, pmix_job_t *trk, pmix
     pmix_data_array_t *darray;
 
     pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
-                        "FETCHING APP INFO WITH %d APPS", (int) pmix_list_get_size(tgt));
+                        "FETCHING APP INFO WITH %d APPS",
+                        (int) pmix_list_get_size(tgt));
 
     /* scan for the appnum to identify
      * which app they are asking about */
@@ -407,7 +431,7 @@ pmix_status_t pmix_gds_hash_fetch_appinfo(const char *key, pmix_job_t *trk, pmix
                 ++n;
                 PMIX_LIST_FOREACH (kp2, &apptr->appinfo, pmix_kval_t) {
                     PMIX_LOAD_KEY(info[n].key, kp2->key);
-                    rc = pmix_value_xfer(&info[n].value, kp2->value);
+                    rc = PMIx_Value_xfer(&info[n].value, kp2->value);
                     if (PMIX_SUCCESS != rc) {
                         PMIX_ERROR_LOG(rc);
                         PMIX_DATA_ARRAY_FREE(darray);
@@ -452,7 +476,7 @@ pmix_status_t pmix_gds_hash_fetch_appinfo(const char *key, pmix_job_t *trk, pmix
             kp2 = PMIX_NEW(pmix_kval_t);
             kp2->key = strdup(kv->key);
             kp2->value = (pmix_value_t *) malloc(sizeof(pmix_value_t));
-            rc = pmix_value_xfer(kp2->value, kv->value);
+            rc = PMIx_Value_xfer(kp2->value, kv->value);
             if (PMIX_SUCCESS != rc) {
                 PMIX_ERROR_LOG(rc);
                 PMIX_RELEASE(kp2);
@@ -476,15 +500,15 @@ pmix_status_t pmix_gds_hash_fetch(const pmix_proc_t *proc, pmix_scope_t scope, b
     pmix_job_t *trk;
     pmix_status_t rc;
     pmix_kval_t *kv, *kvptr;
-    pmix_info_t *info, *iptr;
-    size_t m, n, ninfo, niptr;
+    pmix_info_t *iptr;
+    size_t n, ninfo, niptr;
     pmix_hash_table_t *ht;
-    pmix_session_t *sptr;
-    uint32_t sid;
     pmix_rank_t rnk;
     pmix_list_t rkvs;
+    bool sessioninfo = false;
     bool nodeinfo = false;
     bool appinfo = false;
+    bool sidgiven = false;
     bool nigiven = false;
     bool apigiven = false;
 
@@ -492,6 +516,9 @@ pmix_status_t pmix_gds_hash_fetch(const pmix_proc_t *proc, pmix_scope_t scope, b
                         "%s pmix:gds:hash fetch %s for proc %s on scope %s",
                         PMIX_NAME_PRINT(&pmix_globals.myid), (NULL == key) ? "NULL" : key,
                         PMIX_NAME_PRINT(proc), PMIx_Scope_string(scope));
+
+
+    PMIX_HIDE_UNUSED_PARAMS(copy);
 
     /* see if we have a tracker for this nspace - we will
      * if we already cached the job info for it. If we
@@ -508,7 +535,7 @@ pmix_status_t pmix_gds_hash_fetch(const pmix_proc_t *proc, pmix_scope_t scope, b
      * info for this nspace - retrieve it */
     if (NULL == key && PMIX_RANK_WILDCARD == proc->rank) {
         /* fetch all values from the hash table tied to rank=wildcard */
-        rc = dohash(&trk->internal, NULL, PMIX_RANK_WILDCARD, 0, kvs);
+        rc = pmix_hash_fetch(&trk->internal, PMIX_RANK_WILDCARD, NULL, NULL, 0, kvs);
         if (PMIX_SUCCESS != rc && PMIX_ERR_NOT_FOUND != rc) {
             return rc;
         }
@@ -524,6 +551,11 @@ pmix_status_t pmix_gds_hash_fetch(const pmix_proc_t *proc, pmix_scope_t scope, b
             }
             pmix_list_append(kvs, &kv->super);
         }
+        /* collect all the relevant session-level info */
+        rc = pmix_gds_hash_fetch_sessioninfo(NULL, trk, qualifiers, nqual, kvs);
+        if (PMIX_SUCCESS != rc) {
+            return rc;
+        }
         /* collect the relevant node-level info */
         rc = pmix_gds_hash_fetch_nodeinfo(NULL, trk, &trk->nodeinfo, qualifiers, nqual, kvs);
         if (PMIX_SUCCESS != rc) {
@@ -537,33 +569,30 @@ pmix_status_t pmix_gds_hash_fetch(const pmix_proc_t *proc, pmix_scope_t scope, b
         /* finally, we need the job-level info for each rank in the job */
         for (rnk = 0; rnk < trk->nptr->nprocs; rnk++) {
             PMIX_CONSTRUCT(&rkvs, pmix_list_t);
-            rc = dohash(&trk->internal, NULL, rnk, 2, &rkvs);
+            rc = pmix_hash_fetch(&trk->internal, rnk, NULL, NULL, 0, &rkvs);
             if (PMIX_ERR_NOMEM == rc) {
+                PMIX_LIST_DESTRUCT(&rkvs);
                 return rc;
             }
             if (0 == pmix_list_get_size(&rkvs)) {
                 PMIX_DESTRUCT(&rkvs);
                 continue;
             }
-            /* should only have one entry on list */
-            kvptr = (pmix_kval_t *) pmix_list_get_first(&rkvs);
-            /* we have to assemble the results into a proc blob
-             * so the remote end will know what to do with it */
-            info = (pmix_info_t *) kvptr->value->data.darray->array;
-            ninfo = kvptr->value->data.darray->size;
+            ninfo = pmix_list_get_size(&rkvs);
             /* setup to return the result */
-            kv = PMIX_NEW(pmix_kval_t);
-            kv->key = strdup(PMIX_PROC_DATA);
-            kv->value = (pmix_value_t *) malloc(sizeof(pmix_value_t));
+            PMIX_KVAL_NEW(kv, PMIX_PROC_DATA);
             kv->value->type = PMIX_DATA_ARRAY;
             niptr = ninfo + 1; // need space for the rank
             PMIX_DATA_ARRAY_CREATE(kv->value->data.darray, niptr, PMIX_INFO);
-            iptr = (pmix_info_t *) kv->value->data.darray->array;
+            iptr = (pmix_info_t*)kv->value->data.darray->array;
             /* start with the rank */
             PMIX_INFO_LOAD(&iptr[0], PMIX_RANK, &rnk, PMIX_PROC_RANK);
             /* now transfer rest of data across */
-            for (n = 0; n < ninfo; n++) {
-                PMIX_INFO_XFER(&iptr[n + 1], &info[n]);
+            n = 1;
+            PMIX_LIST_FOREACH(kvptr, &rkvs, pmix_kval_t) {
+                PMIX_LOAD_KEY(&iptr[n].key, kvptr->key);
+                PMIx_Value_xfer(&iptr[n].value, kvptr->value);
+                ++n;
             }
             /* add to the results */
             pmix_list_append(kvs, &kv->super);
@@ -576,49 +605,8 @@ pmix_status_t pmix_gds_hash_fetch(const pmix_proc_t *proc, pmix_scope_t scope, b
     /* see if they are asking for session, node, or app-level info */
     for (n = 0; n < nqual; n++) {
         if (PMIX_CHECK_KEY(&qualifiers[n], PMIX_SESSION_INFO)) {
-            /* they must have provided a session ID */
-            for (m = 0; m < nqual; m++) {
-                if (PMIX_CHECK_KEY(&qualifiers[m], PMIX_SESSION_ID)) {
-                    /* see if we have this session */
-                    PMIX_VALUE_GET_NUMBER(rc, &qualifiers[m].value, sid, uint32_t);
-                    if (PMIX_SUCCESS != rc) {
-                        /* didn't provide a correct value */
-                        PMIX_ERROR_LOG(rc);
-                        return rc;
-                    }
-                    PMIX_LIST_FOREACH (sptr, &mca_gds_hash_component.mysessions, pmix_session_t) {
-                        if (sptr->session == sid) {
-                            /* see if they want info for a specific node */
-                            rc = pmix_gds_hash_fetch_nodeinfo(key, trk, &sptr->nodeinfo, qualifiers,
-                                                              nqual, kvs);
-                            /* if they did, then we are done */
-                            if (PMIX_ERR_DATA_VALUE_NOT_FOUND != rc) {
-                                return rc;
-                            }
-                            /* check the session info */
-                            PMIX_LIST_FOREACH (kvptr, &sptr->sessioninfo, pmix_kval_t) {
-                                if (NULL == key || PMIX_CHECK_KEY(kvptr, key)) {
-                                    kv = PMIX_NEW(pmix_kval_t);
-                                    kv->key = strdup(kvptr->key);
-                                    kv->value = (pmix_value_t *) malloc(sizeof(pmix_value_t));
-                                    PMIX_VALUE_XFER(rc, kv->value, kvptr->value);
-                                    if (PMIX_SUCCESS != rc) {
-                                        PMIX_RELEASE(kv);
-                                        return rc;
-                                    }
-                                    pmix_list_append(kvs, &kv->super);
-                                    if (NULL != key) {
-                                        /* we are done */
-                                        return PMIX_SUCCESS;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            /* if we get here, then the session wasn't found */
-            return PMIX_ERR_NOT_FOUND;
+            sessioninfo = PMIX_INFO_TRUE(&qualifiers[n]);
+            sidgiven = true;
         } else if (PMIX_CHECK_KEY(&qualifiers[n], PMIX_NODE_INFO)) {
             nodeinfo = PMIX_INFO_TRUE(&qualifiers[n]);
             nigiven = true;
@@ -628,19 +616,20 @@ pmix_status_t pmix_gds_hash_fetch(const pmix_proc_t *proc, pmix_scope_t scope, b
         }
     }
 
-    /* check for node/app keys in the absence of corresponding qualifier */
-    if (NULL != key && !nigiven && !apigiven) {
-        if (pmix_check_node_info(key)) {
+    /* check for session/node/app keys in the absence of corresponding qualifier */
+    if (NULL != key && !sidgiven && !nigiven && !apigiven) {
+        if (pmix_check_session_info(key)) {
+            sessioninfo = true;
+        } else if (pmix_check_node_info(key)) {
             nodeinfo = true;
         } else if (pmix_check_app_info(key)) {
             appinfo = true;
         }
     }
 
-    /* find the hash table for this nspace */
-    trk = pmix_gds_hash_get_tracker(proc->nspace, false);
-    if (NULL == trk) {
-        return PMIX_ERR_INVALID_NAMESPACE;
+    if (sessioninfo) {
+        rc = pmix_gds_hash_fetch_sessioninfo(key, trk, qualifiers, nqual, kvs);
+        return rc;
     }
 
     if (!PMIX_RANK_IS_VALID(proc->rank)) {
@@ -666,10 +655,13 @@ pmix_status_t pmix_gds_hash_fetch(const pmix_proc_t *proc, pmix_scope_t scope, b
     /* fetch from the corresponding hash table - note that
      * we always provide a copy as we don't support
      * shared memory */
-    if (PMIX_INTERNAL == scope || PMIX_SCOPE_UNDEF == scope || PMIX_GLOBAL == scope
-        || PMIX_RANK_WILDCARD == proc->rank) {
+    if (PMIX_INTERNAL == scope ||
+        PMIX_SCOPE_UNDEF == scope ||
+        PMIX_GLOBAL == scope ||
+        PMIX_RANK_WILDCARD == proc->rank) {
         ht = &trk->internal;
-    } else if (PMIX_LOCAL == scope || PMIX_GLOBAL == scope) {
+    } else if (PMIX_LOCAL == scope ||
+               PMIX_GLOBAL == scope) {
         ht = &trk->local;
     } else if (PMIX_REMOTE == scope) {
         ht = &trk->remote;
@@ -684,7 +676,7 @@ doover:
      * be the source */
     if (PMIX_RANK_UNDEF == proc->rank) {
         for (rnk = 0; rnk < trk->nptr->nprocs; rnk++) {
-            rc = dohash(ht, key, rnk, true, kvs);
+            rc = pmix_hash_fetch(ht, rnk, key, qualifiers, nqual, kvs);
             if (PMIX_ERR_NOMEM == rc) {
                 return rc;
             }
@@ -712,12 +704,12 @@ doover:
         if (NULL == key) {
             /* and need to add all job info just in case that was
              * passed via a different GDS component */
-            rc = dohash(&trk->internal, NULL, PMIX_RANK_WILDCARD, false, kvs);
+            rc = pmix_hash_fetch(&trk->internal, PMIX_RANK_WILDCARD, NULL, NULL, 0, kvs);
         } else {
             rc = PMIX_ERR_NOT_FOUND;
         }
     } else {
-        rc = dohash(ht, key, proc->rank, false, kvs);
+        rc = pmix_hash_fetch(ht, proc->rank, key, qualifiers, nqual, kvs);
     }
     if (PMIX_SUCCESS == rc) {
         if (PMIX_GLOBAL == scope) {
@@ -753,7 +745,7 @@ doover:
         if (PMIX_RANK_IS_VALID(proc->rank)) {
             if (PMIX_LOCAL == scope) {
                 /* check the remote scope */
-                rc = dohash(&trk->remote, key, proc->rank, false, kvs);
+                rc = pmix_hash_fetch(&trk->remote, proc->rank, key, qualifiers, nqual, kvs);
                 if (PMIX_SUCCESS == rc || 0 < pmix_list_get_size(kvs)) {
                     while (NULL != (kv = (pmix_kval_t *) pmix_list_remove_first(kvs))) {
                         PMIX_RELEASE(kv);
@@ -764,7 +756,7 @@ doover:
                 }
             } else if (PMIX_REMOTE == scope) {
                 /* check the local scope */
-                rc = dohash(&trk->local, key, proc->rank, false, kvs);
+                rc = pmix_hash_fetch(&trk->local, proc->rank, key, qualifiers, nqual, kvs);
                 if (PMIX_SUCCESS == rc || 0 < pmix_list_get_size(kvs)) {
                     while (NULL != (kv = (pmix_kval_t *) pmix_list_remove_first(kvs))) {
                         PMIX_RELEASE(kv);
@@ -779,5 +771,70 @@ doover:
         }
     }
 
+    return rc;
+}
+
+pmix_status_t pmix_gds_hash_fetch_arrays(struct pmix_peer_t *pr, pmix_buffer_t *reply)
+{
+    pmix_peer_t *peer = (pmix_peer_t *) pr;
+    pmix_namespace_t *ns = peer->nptr;
+    pmix_job_t *trk;
+    pmix_list_t kvs;
+    pmix_kval_t *kv;
+    pmix_status_t rc;
+
+    if (!PMIX_PEER_IS_SERVER(pmix_globals.mypeer) &&
+        !PMIX_PEER_IS_LAUNCHER(pmix_globals.mypeer)) {
+        /* this function is only available on servers */
+        PMIX_ERROR_LOG(PMIX_ERR_NOT_SUPPORTED);
+        return PMIX_ERR_NOT_SUPPORTED;
+    }
+
+     pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
+                "%s pmix:gds:hash fetch arrays for proc [%s:%u]",
+                PMIX_NAME_PRINT(&pmix_globals.myid),
+                peer->info->pname.nspace, peer->info->pname.rank);
+
+    /* see if we have a tracker for this nspace - we will
+     * if we already cached the job info for it. If we
+     * didn't then we'll have no idea how to answer any
+     * questions */
+    trk = pmix_gds_hash_get_tracker(ns->nspace, false);
+    if (NULL == trk) {
+        /* let the caller know */
+        return PMIX_ERR_INVALID_NAMESPACE;
+    }
+    PMIX_CONSTRUCT(&kvs, pmix_list_t);
+
+    rc = pmix_gds_hash_fetch_sessioninfo(NULL, trk, NULL, 0, &kvs);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        PMIX_LIST_DESTRUCT(&kvs);
+        return rc;
+    }
+
+    rc = pmix_gds_hash_fetch_nodeinfo(NULL, trk, &trk->nodeinfo, NULL, 0, &kvs);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        PMIX_LIST_DESTRUCT(&kvs);
+        return rc;
+    }
+
+    rc = pmix_gds_hash_fetch_appinfo(NULL, trk, &trk->apps, NULL, 0, &kvs);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        PMIX_LIST_DESTRUCT(&kvs);
+        return rc;
+    }
+
+    /* pack the results */
+    while (NULL != (kv = (pmix_kval_t*)pmix_list_remove_first(&kvs))) {
+        PMIX_BFROPS_PACK(rc, peer, reply, kv, 1, PMIX_KVAL);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_ERROR_LOG(rc);
+            break;
+        }
+    }
+    PMIX_LIST_DESTRUCT(&kvs);
     return rc;
 }

@@ -13,7 +13,7 @@
  * Copyright (c) 2007-2011 Cisco Systems, Inc.  All rights reserved.
  * Copyright (c) 2012-2013 Los Alamos National Security, Inc. All rights reserved.
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -31,15 +31,12 @@
 
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/class/pmix_list.h"
 #include "src/class/pmix_object.h"
 #include "src/class/pmix_pointer_array.h"
 
 BEGIN_C_DECLS
-
-/* define the results values for comparisons so we can change them in only one place */
-typedef enum { PMIX_EQUAL = 0, PMIX_VALUE1_GREATER, PMIX_VALUE2_GREATER } pmix_value_cmp_t;
 
 /* set the bfrops module */
 #define PMIX_BFROPS_SET_MODULE(r, mp, p, v)                              \
@@ -139,6 +136,16 @@ PMIX_EXPORT PMIX_CLASS_DECLARATION(pmix_buffer_t);
         (b)->unpack_ptr = (b)->base_ptr;                \
         (d) = NULL;                                     \
         (s) = 0;                                        \
+    } while (0)
+
+#define PMIX_LOAD_BUFFER_NON_DESTRUCT(p, b, d, s)       \
+    do {                                                \
+        (b)->type = (p)->nptr->compat.type;             \
+        (b)->base_ptr = (char *) (d);                   \
+        (b)->bytes_used = (s);                          \
+        (b)->bytes_allocated = (s);                     \
+        (b)->pack_ptr = ((char *) (b)->base_ptr) + (s); \
+        (b)->unpack_ptr = (b)->base_ptr;                \
     } while (0)
 
 /* Convenience macro for extracting a pmix_buffer_t's payload

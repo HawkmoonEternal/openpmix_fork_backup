@@ -13,7 +13,7 @@
  * Copyright (c) 2011-2015 Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -31,8 +31,8 @@
 #define PMIX_MCA_PFEXEC_H
 
 #include "pmix_config.h"
-#include "include/pmix_common.h"
-#include "src/include/types.h"
+#include "pmix_common.h"
+#include "src/include/pmix_types.h"
 
 #include "src/mca/mca.h"
 
@@ -71,12 +71,7 @@ typedef struct {
 /**
  * pfexec component
  */
-typedef struct {
-    /** component version */
-    pmix_mca_base_component_t version;
-    /** component data */
-    pmix_mca_base_component_data_t base_data;
-} pmix_pfexec_base_component_t;
+typedef pmix_mca_base_component_t pmix_pfexec_base_component_t;
 
 /**
  * Macro for use in modules that are of type pfexec

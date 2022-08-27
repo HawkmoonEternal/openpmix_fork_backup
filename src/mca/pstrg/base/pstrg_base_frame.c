@@ -5,7 +5,7 @@
  * Copyright (c) 2017-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2020      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -15,14 +15,14 @@
 
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include <pthread.h>
-#include PMIX_EVENT_HEADER
+#include <event.h>
 
 #include "src/class/pmix_list.h"
-#include "src/include/types.h"
-#include "src/mca/base/base.h"
+#include "src/include/pmix_types.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/mca.h"
 #include "src/runtime/pmix_progress_threads.h"
 
@@ -39,8 +39,16 @@
 /*
  * Global variables
  */
-pmix_pstrg_API_module_t pmix_pstrg = {pmix_pstrg_base_query};
-pmix_pstrg_base_t pmix_pstrg_base = {{{0}}};
+pmix_pstrg_API_module_t pmix_pstrg = {
+    .query = pmix_pstrg_base_query
+};
+
+pmix_pstrg_base_t pmix_pstrg_base = {
+    .actives = PMIX_LIST_STATIC_INIT,
+    .evbase = NULL,
+    .selected = false,
+    .init = false
+};
 
 static int pmix_pstrg_base_close(void)
 {
@@ -82,7 +90,7 @@ static int pmix_pstrg_base_open(pmix_mca_base_open_flag_t flags)
 }
 
 PMIX_MCA_BASE_FRAMEWORK_DECLARE(pmix, pstrg, "PMIx Storage Support", NULL, pmix_pstrg_base_open,
-                                pmix_pstrg_base_close, mca_pstrg_base_static_components,
+                                pmix_pstrg_base_close, pmix_mca_pstrg_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 PMIX_CLASS_INSTANCE(pmix_pstrg_active_module_t, pmix_list_item_t, NULL, NULL);

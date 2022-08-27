@@ -6,7 +6,7 @@
  * Copyright (c) 2019      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2020      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -57,13 +57,14 @@
 #define PMIX_HOTEL_H
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/class/pmix_object.h"
-#include "src/include/prefetch.h"
-#include "src/include/types.h"
-#include PMIX_EVENT_HEADER
+#include "src/include/pmix_prefetch.h"
+#include "src/include/pmix_types.h"
+#include <event.h>
 
-#include "src/util/output.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_output.h"
 
 BEGIN_C_DECLS
 
@@ -135,7 +136,21 @@ typedef struct pmix_hotel_t {
     int *unoccupied_rooms;
     int last_unoccupied_room;
 } pmix_hotel_t;
-PMIX_CLASS_DECLARATION(pmix_hotel_t);
+PMIX_EXPORT PMIX_CLASS_DECLARATION(pmix_hotel_t);
+
+#define PMIX_HOTEL_STATIC_INIT                      \
+{                                                   \
+    .super = PMIX_OBJ_STATIC_INIT(pmix_object_t),   \
+    .num_rooms = 0,                                 \
+    .evbase = NULL,                                 \
+    .eviction_timeout = {0, 0},                     \
+    .evict_callback_fn = NULL,                      \
+    .rooms = NULL,                                  \
+    .eviction_args = NULL,                          \
+    .unoccupied_rooms = NULL,                       \
+    .last_unoccupied_room = 0                       \
+}
+
 
 /**
  * Initialize the hotel.
@@ -157,7 +172,7 @@ PMIX_CLASS_DECLARATION(pmix_hotel_t);
  * already been ("forcibly") checked out *before* the
  * eviction_callback_fn is invoked.
  *
- * @return PMIX_SUCCESS if all initializations were succesful. Otherwise,
+ * @return PMIX_SUCCESS if all initializations were successful. Otherwise,
  *  the error indicate what went wrong in the function.
  */
 PMIX_EXPORT pmix_status_t pmix_hotel_init(pmix_hotel_t *hotel, int num_rooms,

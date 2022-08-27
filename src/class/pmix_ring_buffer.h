@@ -12,7 +12,7 @@
  *                         All rights reserved.
  * Copyright (c) 2010      Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -29,7 +29,7 @@
 #include "src/include/pmix_config.h"
 
 #include "src/class/pmix_object.h"
-#include "src/util/output.h"
+#include "src/util/pmix_output.h"
 
 BEGIN_C_DECLS
 
@@ -62,7 +62,7 @@ PMIX_CLASS_DECLARATION(pmix_ring_buffer_t);
  * @param ring Pointer to a ring buffer (IN/OUT)
  * @param size The number of elements in the ring (IN)
  *
- * @return PMIX_SUCCESS if all initializations were succesful. Otherwise,
+ * @return PMIX_SUCCESS if all initializations were successful. Otherwise,
  *  the error indicate what went wrong in the function.
  */
 PMIX_EXPORT int pmix_ring_buffer_init(pmix_ring_buffer_t *ring, int size);

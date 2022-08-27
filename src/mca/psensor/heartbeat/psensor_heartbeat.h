@@ -3,7 +3,7 @@
  * Copyright (c) 2012      Los Alamos National Security, Inc. All rights reserved.
  *
  * Copyright (c) 2017-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -19,7 +19,7 @@
 #define PMIX_PSENSOR_HEARTBEAT_H
 
 #include "src/include/pmix_config.h"
-#include "src/include/types.h"
+#include "src/include/pmix_types.h"
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
@@ -33,7 +33,7 @@ typedef struct {
     pmix_list_t trackers;
 } pmix_psensor_heartbeat_component_t;
 
-PMIX_EXPORT extern pmix_psensor_heartbeat_component_t mca_psensor_heartbeat_component;
+PMIX_EXPORT extern pmix_psensor_heartbeat_component_t pmix_mca_psensor_heartbeat_component;
 extern pmix_psensor_base_module_t pmix_psensor_heartbeat_module;
 
 void pmix_psensor_heartbeat_recv_beats(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr,

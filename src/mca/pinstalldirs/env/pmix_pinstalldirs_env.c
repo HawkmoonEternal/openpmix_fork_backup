@@ -3,7 +3,7 @@
  *                         reserved.
  * Copyright (c) 2007      Cisco Systems, Inc.  All rights reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -16,15 +16,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/mca/pinstalldirs/pinstalldirs.h"
 
 static void pinstalldirs_env_init(pmix_info_t info[], size_t ninfo);
 
-pmix_pinstalldirs_base_component_t mca_pinstalldirs_env_component = {
+pmix_pinstalldirs_base_component_t pmix_mca_pinstalldirs_env_component = {
     /* First, the mca_component_t struct containing meta information
        about the component itself */
-    {
+    .component = {
         PMIX_PINSTALLDIRS_BASE_VERSION_1_0_0,
 
         /* Component name and version */
@@ -33,12 +33,26 @@ pmix_pinstalldirs_base_component_t mca_pinstalldirs_env_component = {
         PMIX_MINOR_VERSION,
         PMIX_RELEASE_VERSION,
     },
-    {/* This component is checkpointable */
-     PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT},
 
     /* Next the pmix_pinstall_dirs_t install_dirs_data information */
-    {
-        NULL,
+    .install_dirs_data = {
+        .prefix = NULL,
+        .exec_prefix = NULL,
+        .bindir = NULL,
+        .sbindir = NULL,
+        .libexecdir = NULL,
+        .datarootdir = NULL,
+        .datadir = NULL,
+        .sysconfdir = NULL,
+        .sharedstatedir = NULL,
+        .localstatedir = NULL,
+        .libdir = NULL,
+        .includedir = NULL,
+        .infodir = NULL,
+        .mandir = NULL,
+        .pmixdatadir = NULL,
+        .pmixlibdir = NULL,
+        .pmixincludedir = NULL
     },
     .init = pinstalldirs_env_init};
 
@@ -48,7 +62,7 @@ pmix_pinstalldirs_base_component_t mca_pinstalldirs_env_component = {
         if (NULL != tmp && 0 == strlen(tmp)) {                        \
             tmp = NULL;                                               \
         }                                                             \
-        mca_pinstalldirs_env_component.install_dirs_data.field = tmp; \
+        pmix_mca_pinstalldirs_env_component.install_dirs_data.field = tmp; \
     } while (0)
 
 static void pinstalldirs_env_init(pmix_info_t info[], size_t ninfo)
@@ -59,7 +73,7 @@ static void pinstalldirs_env_init(pmix_info_t info[], size_t ninfo)
     /* check for a prefix value */
     for (n = 0; n < ninfo; n++) {
         if (PMIX_CHECK_KEY(&info[n], PMIX_PREFIX)) {
-            mca_pinstalldirs_env_component.install_dirs_data.prefix = info[n].value.data.string;
+            pmix_mca_pinstalldirs_env_component.install_dirs_data.prefix = info[n].value.data.string;
             prefix_given = true;
             break;
         }

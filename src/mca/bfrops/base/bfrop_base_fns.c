@@ -12,7 +12,8 @@
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2019      Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
+ * Copyright (c) 2022      IBM Corporation.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -27,30 +28,83 @@
 #    include <unistd.h>
 #endif
 
+#include "pmix.h"
+
 #include "src/include/pmix_globals.h"
 #include "src/mca/preg/preg.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/hwloc/pmix_hwloc.h"
 
 #include "src/mca/bfrops/base/base.h"
 
 /* define two public functions */
-PMIX_EXPORT void pmix_value_load(pmix_value_t *v, const void *data, pmix_data_type_t type)
+PMIX_EXPORT pmix_status_t PMIx_Value_load(pmix_value_t *v,
+                                          const void *data,
+                                          pmix_data_type_t type)
 {
     pmix_bfrops_base_value_load(v, data, type);
+    return PMIX_SUCCESS;
 }
 
-PMIX_EXPORT pmix_status_t pmix_value_unload(pmix_value_t *kv, void **data, size_t *sz)
+PMIX_EXPORT pmix_status_t PMIx_Value_unload(pmix_value_t *kv,
+                                            void **data,
+                                            size_t *sz)
 {
     return pmix_bfrops_base_value_unload(kv, data, sz);
 }
 
-PMIX_EXPORT pmix_status_t pmix_value_xfer(pmix_value_t *dest, const pmix_value_t *src)
+PMIX_EXPORT void PMIx_Value_destruct(pmix_value_t *val)
+{
+    pmix_bfrops_base_value_destruct(val);
+}
+
+PMIX_EXPORT pmix_status_t PMIx_Value_xfer(pmix_value_t *dest,
+                                          const pmix_value_t *src)
 {
     return pmix_bfrops_base_value_xfer(dest, src);
 }
 
-void pmix_bfrops_base_value_load(pmix_value_t *v, const void *data, pmix_data_type_t type)
+PMIX_EXPORT void PMIx_Data_array_destruct(pmix_data_array_t *d)
+{
+    pmix_bfrops_base_darray_destruct(d);
+}
+
+PMIX_EXPORT pmix_status_t PMIx_Info_load(pmix_info_t *info,
+                                         const char *key,
+                                         const void *data,
+                                         pmix_data_type_t type)
+{
+    if (NULL == key) {
+        return PMIX_ERR_BAD_PARAM;
+    }
+    PMIX_LOAD_KEY(info->key, key);
+    info->flags = 0;
+    return PMIx_Value_load(&info->value, data, type);
+}
+
+PMIX_EXPORT pmix_status_t PMIx_Info_xfer(pmix_info_t *dest,
+                                         const pmix_info_t *src)
+{
+    pmix_status_t rc;
+
+    if (NULL == dest || NULL == src) {
+        return PMIX_ERR_BAD_PARAM;
+    }
+    PMIX_LOAD_KEY(dest->key, src->key);
+    dest->flags = src->flags;
+    if (PMIX_INFO_IS_PERSISTENT(src)) {
+        memcpy(&dest->value, &src->value, sizeof(pmix_value_t));
+        rc = PMIX_SUCCESS;
+    } else {
+        rc = PMIx_Value_xfer(&dest->value, &src->value);
+    }
+    return rc;
+}
+
+void pmix_bfrops_base_value_load(pmix_value_t *v,
+                                 const void *data,
+                                 pmix_data_type_t type)
 {
     pmix_byte_object_t *bo;
     pmix_proc_info_t *pi;
@@ -76,8 +130,7 @@ void pmix_bfrops_base_value_load(pmix_value_t *v, const void *data, pmix_data_ty
         /* just set the fields to zero */
         memset(&v->data, 0, sizeof(v->data));
         if (PMIX_BOOL == type) {
-            v->data.flag
-                = true; // existence of the attribute indicates true unless specified different
+            v->data.flag = true; // existence of the attribute indicates true unless specified different
         }
     } else {
         switch (type) {
@@ -353,8 +406,8 @@ pmix_status_t pmix_bfrops_base_value_unload(pmix_value_t *kv, void **data, size_
     pmix_regattr_t *regattr, *r;
 
     rc = PMIX_SUCCESS;
-    if (NULL == data
-        || (NULL == *data && PMIX_STRING != kv->type && PMIX_BYTE_OBJECT != kv->type)) {
+    if (NULL == data ||
+        (NULL == *data && PMIX_STRING != kv->type && PMIX_BYTE_OBJECT != kv->type)) {
         rc = PMIX_ERR_BAD_PARAM;
     } else {
         switch (kv->type) {
@@ -362,12 +415,12 @@ pmix_status_t pmix_bfrops_base_value_unload(pmix_value_t *kv, void **data, size_
             rc = PMIX_ERR_UNKNOWN_DATA_TYPE;
             break;
         case PMIX_BOOL:
-            memcpy(*data, &(kv->data.flag), 1);
-            *sz = 1;
+            memcpy(*data, &(kv->data.flag), sizeof(bool));
+            *sz = sizeof(bool);
             break;
         case PMIX_BYTE:
-            memcpy(*data, &(kv->data.byte), 1);
-            *sz = 1;
+            memcpy(*data, &(kv->data.byte), sizeof(uint8_t));
+            *sz = sizeof(uint8_t);
             break;
         case PMIX_STRING:
             if (NULL != kv->data.string) {
@@ -383,49 +436,34 @@ pmix_status_t pmix_bfrops_base_value_unload(pmix_value_t *kv, void **data, size_
             memcpy(*data, &(kv->data.pid), sizeof(pid_t));
             *sz = sizeof(pid_t);
             break;
+        case PMIX_UINT:
         case PMIX_INT:
             memcpy(*data, &(kv->data.integer), sizeof(int));
             *sz = sizeof(int);
             break;
-        case PMIX_INT8:
-            memcpy(*data, &(kv->data.int8), 1);
-            *sz = 1;
-            break;
-        case PMIX_INT16:
-            memcpy(*data, &(kv->data.int16), 2);
-            *sz = 2;
-            break;
-        case PMIX_INT32:
-            memcpy(*data, &(kv->data.int32), 4);
-            *sz = 4;
-            break;
-        case PMIX_INT64:
-            memcpy(*data, &(kv->data.int64), 8);
-            *sz = 8;
-            break;
-        case PMIX_UINT:
-            memcpy(*data, &(kv->data.uint), sizeof(int));
-            *sz = sizeof(int);
-            break;
         case PMIX_UINT8:
-            memcpy(*data, &(kv->data.uint8), 1);
-            *sz = 1;
+        case PMIX_INT8:
+            memcpy(*data, &(kv->data.int8), sizeof(int8_t));
+            *sz = sizeof(int8_t);
             break;
         case PMIX_UINT16:
+        case PMIX_INT16:
         case PMIX_STOR_ACCESS_TYPE:
-            memcpy(*data, &(kv->data.uint16), 2);
-            *sz = 2;
+            memcpy(*data, &(kv->data.int16), sizeof(int16_t));
+            *sz = sizeof(int16_t);
             break;
         case PMIX_UINT32:
-            memcpy(*data, &(kv->data.uint32), 4);
-            *sz = 4;
+        case PMIX_INT32:
+            memcpy(*data, &(kv->data.int32), sizeof(int32_t));
+            *sz = sizeof(int32_t);
             break;
         case PMIX_UINT64:
+        case PMIX_INT64:
         case PMIX_STOR_MEDIUM:
         case PMIX_STOR_ACCESS:
         case PMIX_STOR_PERSIST:
-            memcpy(*data, &(kv->data.uint64), 8);
-            *sz = 8;
+            memcpy(*data, &(kv->data.int64), sizeof(int64_t));
+            *sz = sizeof(int64_t);
             break;
         case PMIX_FLOAT:
             memcpy(*data, &(kv->data.fval), sizeof(float));
@@ -452,17 +490,12 @@ pmix_status_t pmix_bfrops_base_value_unload(pmix_value_t *kv, void **data, size_
             *sz = sizeof(pmix_rank_t);
             break;
         case PMIX_PROC_NSPACE:
-            rc = pmix_bfrops_base_copy_nspace((pmix_nspace_t **) data, kv->data.nspace,
-                                              PMIX_PROC_NSPACE);
-            if (PMIX_SUCCESS == rc) {
-                *sz = sizeof(pmix_nspace_t);
-            }
+            PMIX_LOAD_NSPACE(*data, *kv->data.nspace);
+            *sz = strlen(*kv->data.nspace);
             break;
         case PMIX_PROC:
-            rc = pmix_bfrops_base_copy_proc((pmix_proc_t **) data, kv->data.proc, PMIX_PROC);
-            if (PMIX_SUCCESS == rc) {
-                *sz = sizeof(pmix_proc_t);
-            }
+            PMIX_XFER_PROCID(*data, kv->data.proc);
+            *sz = sizeof(pmix_proc_t);
             break;
         case PMIX_BYTE_OBJECT:
         case PMIX_COMPRESSED_STRING:
@@ -470,6 +503,7 @@ pmix_status_t pmix_bfrops_base_value_unload(pmix_value_t *kv, void **data, size_
             if (NULL != kv->data.bo.bytes && 0 < kv->data.bo.size) {
                 *data = kv->data.bo.bytes;
                 *sz = kv->data.bo.size;
+
             } else {
                 *data = NULL;
                 *sz = 0;
@@ -663,169 +697,291 @@ pmix_status_t pmix_bfrops_base_value_unload(pmix_value_t *kv, void **data, size_
     return rc;
 }
 
-/* compare function for pmix_value_t */
-pmix_value_cmp_t pmix_bfrops_base_value_cmp(pmix_value_t *p, pmix_value_t *p1)
+void pmix_bfrops_base_darray_destruct(pmix_data_array_t *d)
 {
-    pmix_value_cmp_t rc = PMIX_VALUE1_GREATER;
-    int ret;
+    size_t n;
+    char **s;
+    pmix_value_t *vt;
+    pmix_app_t *ap;
+    pmix_info_t *info;
+    pmix_pdata_t *pd;
+    pmix_buffer_t *pb;
+    pmix_byte_object_t *bo;
+    pmix_kval_t *kv;
+    pmix_proc_info_t *pi;
+    pmix_data_array_t *darray;
+    pmix_query_t *q;
+    pmix_envar_t *ev;
+    pmix_coord_t *coord;
+    pmix_regattr_t *reg;
+    pmix_cpuset_t *cp;
+    pmix_topology_t *topo;
+    pmix_geometry_t *geo;
+    pmix_device_distance_t *dvd;
+    pmix_endpoint_t *endpt;
+    pmix_data_buffer_t *db;
+    pmix_proc_stats_t *pstats;
+    pmix_disk_stats_t *dkstats;
+    pmix_net_stats_t *netstats;
+    pmix_node_stats_t *ndstats;
 
-    if (p->type != p1->type) {
-        return rc;
+    switch (d->type) {
+        case PMIX_STRING:
+            s = (char**)d->array;
+            for (n=0; n < d->size; n++) {
+                if (NULL != s[n]) {
+                    pmix_free(s[n]);
+                }
+            }
+            pmix_free(d->array);
+            break;
+        case PMIX_VALUE:
+            vt = (pmix_value_t*)d->array;
+            PMIX_VALUE_FREE(vt, d->size);
+            break;
+        case PMIX_APP:
+            ap = (pmix_app_t*)d->array;
+            PMIX_APP_FREE(ap, d->size);
+            break;
+        case PMIX_INFO:
+            info = (pmix_info_t*)d->array;
+            PMIX_INFO_FREE(info, d->size);
+            break;
+        case PMIX_PDATA:
+            pd = (pmix_pdata_t*)d->array;
+            PMIX_PDATA_FREE(pd, d->size);
+            break;
+        case PMIX_BUFFER:
+            pb = (pmix_buffer_t*)d->array;
+            for (n=0; n < d->size; n++) {
+                PMIX_DESTRUCT(&pb[n]);
+            }
+            pmix_free(d->array);
+            break;
+        case PMIX_BYTE_OBJECT:
+        case PMIX_COMPRESSED_STRING:
+        case PMIX_COMPRESSED_BYTE_OBJECT:
+            bo = (pmix_byte_object_t*)d->array;
+            for (n=0; n < d->size; n++) {
+                if (NULL != bo[n].bytes) {
+                    pmix_free(bo[n].bytes);
+                }
+            }
+            pmix_free(d->array);
+            break;
+        case PMIX_KVAL:
+            kv = (pmix_kval_t*)d->array;
+            for (n=0; n < d->size; n++) {
+                if (NULL != kv[n].key) {
+                    pmix_free(kv[n].key);
+                }
+                if (NULL != kv[n].value) {
+                    PMIX_VALUE_FREE(kv[n].value, 1);
+                }
+            }
+            pmix_free(d->array);
+            break;
+        case PMIX_PROC_INFO:
+            pi = (pmix_proc_info_t*)d->array;
+            PMIX_PROC_INFO_FREE(pi, d->size);
+            break;
+        case PMIX_DATA_ARRAY:
+            darray = (pmix_data_array_t *) d->array;
+            pmix_bfrops_base_darray_destruct(darray);
+            break;
+        case PMIX_QUERY:
+            q = (pmix_query_t*)d->array;
+            PMIX_QUERY_FREE(q, d->size);
+            break;
+        case PMIX_ENVAR:
+            ev = (pmix_envar_t*)d->array;
+            PMIX_ENVAR_FREE(ev, d->size);
+            break;
+        case PMIX_COORD:
+            coord = (pmix_coord_t*)d->array;
+            PMIX_COORD_FREE(coord, d->size);
+            break;
+        case PMIX_REGATTR:
+            reg = (pmix_regattr_t*)d->array;
+            PMIX_REGATTR_FREE(reg, d->size);
+            break;
+        case PMIX_PROC_CPUSET:
+            cp = (pmix_cpuset_t*)d->array;
+            pmix_hwloc_release_cpuset(cp, d->size);
+            break;
+        case PMIX_TOPO:
+            topo = (pmix_topology_t*)d->array;
+            pmix_hwloc_release_topology(topo, d->size);
+            break;
+        case PMIX_GEOMETRY:
+            geo = (pmix_geometry_t*)d->array;
+            PMIX_GEOMETRY_FREE(geo, d->size);
+            break;
+        case PMIX_DEVICE_DIST:
+            dvd = (pmix_device_distance_t*)d->array;
+            PMIX_DEVICE_DIST_FREE(dvd, d->size);
+            break;
+        case PMIX_ENDPOINT:
+            endpt = (pmix_endpoint_t*)d->array;
+            PMIX_ENDPOINT_FREE(endpt, d->size);
+            break;
+        case PMIX_REGEX:
+            bo = (pmix_byte_object_t*)d->array;
+            for (n=0; n < d->size; n++) {
+                if (NULL != bo[n].bytes) {
+                    pmix_preg.release(bo[n].bytes);
+                }
+            }
+            pmix_free(d->array);
+            break;
+        case PMIX_DATA_BUFFER:
+            db = (pmix_data_buffer_t*)d->array;
+            for (n=0; n < d->size; n++) {
+                PMIX_DATA_BUFFER_DESTRUCT(&db[n]);
+            }
+            pmix_free(d->array);
+            break;
+        case PMIX_PROC_STATS:
+            pstats = (pmix_proc_stats_t*)d->array;
+            PMIX_PROC_STATS_FREE(pstats, d->size);
+            break;
+        case PMIX_DISK_STATS:
+            dkstats = (pmix_disk_stats_t*)d->array;
+            PMIX_DISK_STATS_FREE(dkstats, d->size);
+            break;
+        case PMIX_NET_STATS:
+            netstats = (pmix_net_stats_t*)d->array;
+            PMIX_NET_STATS_FREE(netstats, d->size);
+            break;
+        case PMIX_NODE_STATS:
+            ndstats = (pmix_node_stats_t*)d->array;
+            PMIX_NODE_STATS_FREE(ndstats, d->size);
+            break;
+
+        default:
+            if (NULL != d->array) {
+                pmix_free(d->array);
+            }
+            break;
     }
+    d->array = NULL;
+    d->type = PMIX_UNDEF;
+    d->size = 0;
+    return;
+}
 
-    switch (p->type) {
-    case PMIX_UNDEF:
-        rc = PMIX_EQUAL;
-        break;
-    case PMIX_BOOL:
-        if (p->data.flag == p1->data.flag) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_BYTE:
-        if (p->data.byte == p1->data.byte) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_SIZE:
-        if (p->data.size == p1->data.size) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_INT:
-        if (p->data.integer == p1->data.integer) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_INT8:
-        if (p->data.int8 == p1->data.int8) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_INT16:
-        if (p->data.int16 == p1->data.int16) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_INT32:
-        if (p->data.int32 == p1->data.int32) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_INT64:
-        if (p->data.int64 == p1->data.int64) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_UINT:
-        if (p->data.uint == p1->data.uint) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_UINT8:
-        if (p->data.uint8 == p1->data.int8) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_UINT16:
-    case PMIX_STOR_ACCESS_TYPE:
-        if (p->data.uint16 == p1->data.uint16) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_UINT32:
-        if (p->data.uint32 == p1->data.uint32) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_UINT64:
-    case PMIX_STOR_MEDIUM:
-    case PMIX_STOR_ACCESS:
-    case PMIX_STOR_PERSIST:
-        if (p->data.uint64 == p1->data.uint64) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_STRING:
-        if (0 == strcmp(p->data.string, p1->data.string)) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_COMPRESSED_STRING:
-        if (p->data.bo.size > p1->data.bo.size) {
-            return PMIX_VALUE2_GREATER;
-        } else {
-            return PMIX_VALUE1_GREATER;
-        }
-    case PMIX_STATUS:
-        if (p->data.status == p1->data.status) {
-            rc = PMIX_EQUAL;
-        }
-        break;
-    case PMIX_ENVAR:
-        if (NULL != p->data.envar.envar) {
-            if (NULL == p1->data.envar.envar) {
-                return PMIX_VALUE1_GREATER;
+void pmix_bfrops_base_value_destruct(pmix_value_t *v)
+{
+    switch (v->type) {
+        case PMIX_STRING:
+            if (NULL != v->data.string) {
+                free(v->data.string);
             }
-            ret = strcmp(p->data.envar.envar, p1->data.envar.envar);
-            if (ret < 0) {
-                return PMIX_VALUE2_GREATER;
-            } else if (0 < ret) {
-                return PMIX_VALUE1_GREATER;
+            break;
+        case PMIX_PROC:
+            if (NULL != v->data.proc) {
+                PMIX_PROC_FREE(v->data.proc, 1);
             }
-        } else if (NULL != p1->data.envar.envar) {
-            /* we know value1->envar had to be NULL */
-            return PMIX_VALUE2_GREATER;
-        }
+            break;
+        case PMIX_BYTE_OBJECT:
+        case PMIX_COMPRESSED_STRING:
+        case PMIX_COMPRESSED_BYTE_OBJECT:
+            if (NULL != v->data.bo.bytes) {
+                free(v->data.bo.bytes);
+            }
+            break;
+        case PMIX_PROC_INFO:
+            if (NULL != v->data.pinfo) {
+                PMIX_PROC_INFO_FREE(v->data.pinfo, 1);
+            }
+            break;
+        case PMIX_DATA_ARRAY:
+            if (NULL != v->data.darray) {
+                pmix_bfrops_base_darray_destruct(v->data.darray);
+            }
+            break;
+        case PMIX_ENVAR:
+            if (NULL != v->data.envar.envar) {
+                free(v->data.envar.envar);
+            }
+            if (NULL != v->data.envar.value) {
+                free(v->data.envar.value);
+            }
+            break;
+        case PMIX_COORD:
+            if (NULL != v->data.coord) {
+                PMIX_COORD_FREE(v->data.coord, 1);
+            }
+            break;
+        case PMIX_TOPO:
+            if (NULL != v->data.topo) {
+                pmix_hwloc_release_topology(v->data.topo, 1);
+            }
+            break;
+        case PMIX_PROC_CPUSET:
+            if (NULL != v->data.cpuset) {
+                pmix_hwloc_release_cpuset(v->data.cpuset, 1);
+            }
+            break;
+        case PMIX_GEOMETRY:
+            if (NULL != v->data.geometry) {
+                PMIX_GEOMETRY_FREE(v->data.geometry, 1);
+            }
+            break;
+        case PMIX_DEVICE_DIST:
+            if (NULL != v->data.devdist) {
+                PMIX_DEVICE_DIST_DESTRUCT(v->data.devdist);
+            }
+            break;
+        case PMIX_ENDPOINT:
+            if (NULL != v->data.endpoint) {
+                PMIX_ENDPOINT_DESTRUCT(v->data.endpoint);
+            }
+            break;
+        case PMIX_REGATTR:
+            if (NULL != v->data.ptr) {
+                PMIX_REGATTR_DESTRUCT((pmix_regattr_t*)v->data.ptr);
+            }
+            break;
+        case PMIX_REGEX:
+            if (NULL != v->data.bo.bytes) {
+                pmix_preg.release(v->data.bo.bytes);
+            }
+            break;
+        case PMIX_DATA_BUFFER:
+            if (NULL != v->data.dbuf) {
+                PMIX_DATA_BUFFER_RELEASE(v->data.dbuf);
+            }
+            break;
+        case PMIX_PROC_STATS:
+            if (NULL != v->data.pstats) {
+                PMIX_PROC_STATS_RELEASE(v->data.pstats);
+            }
+            break;
+        case PMIX_DISK_STATS:
+            if (NULL != v->data.dkstats) {
+                PMIX_DISK_STATS_RELEASE(v->data.dkstats);
+            }
+            break;
+        case PMIX_NET_STATS:
+            if (NULL != v->data.netstats) {
+                PMIX_NET_STATS_RELEASE(v->data.netstats);
+            }
+            break;
+        case PMIX_NODE_STATS:
+            if (NULL != v->data.ndstats) {
+                PMIX_NODE_STATS_RELEASE(v->data.ndstats);
+            }
+            break;
 
-        /* if both are NULL or are equal, then check value */
-        if (NULL != p->data.envar.value) {
-            if (NULL == p1->data.envar.value) {
-                return PMIX_VALUE1_GREATER;
-            }
-            ret = strcmp(p->data.envar.value, p1->data.envar.value);
-            if (ret < 0) {
-                return PMIX_VALUE2_GREATER;
-            } else if (0 < ret) {
-                return PMIX_VALUE1_GREATER;
-            }
-        } else if (NULL != p1->data.envar.value) {
-            /* we know value1->value had to be NULL */
-            return PMIX_VALUE2_GREATER;
-        }
-
-        /* finally, check separator */
-        if (p->data.envar.separator < p1->data.envar.separator) {
-            return PMIX_VALUE2_GREATER;
-        }
-        if (p1->data.envar.separator < p->data.envar.separator) {
-            return PMIX_VALUE1_GREATER;
-        }
-        rc = PMIX_EQUAL;
-        break;
-    case PMIX_COORD:
-        ret = memcmp(p->data.coord, p1->data.coord, sizeof(pmix_coord_t));
-        if (0 > ret) {
-            return PMIX_VALUE2_GREATER;
-        } else if (0 < ret) {
-            return PMIX_VALUE1_GREATER;
-        } else {
-            return PMIX_EQUAL;
-        }
-    case PMIX_REGATTR:
-        ret = memcmp(p->data.ptr, p1->data.ptr, sizeof(pmix_regattr_t));
-        if (0 > ret) {
-            return PMIX_VALUE2_GREATER;
-        } else if (0 < ret) {
-            return PMIX_VALUE1_GREATER;
-        } else {
-            return PMIX_EQUAL;
-        }
-
-    default:
-        pmix_output(0, "COMPARE-PMIX-VALUE: UNSUPPORTED TYPE %d", (int) p->type);
+        default:
+            /* silence warnings */
+            break;
     }
-    return rc;
+    // mark the value as no longer defined
+    memset(v, 0, sizeof(pmix_value_t));
+    v->type = PMIX_UNDEF;
+    return;
 }
 
 /* Xfer FUNCTIONS FOR GENERIC PMIX TYPES */
@@ -1141,7 +1297,7 @@ const char *pmix_bfrops_base_data_type_string(pmix_pointer_array_t *regtypes, pm
     return info->odti_name;
 }
 
-PMIX_EXPORT void *pmix_info_list_start(void)
+PMIX_EXPORT void *PMIx_Info_list_start(void)
 {
     pmix_list_t *p;
 
@@ -1149,7 +1305,9 @@ PMIX_EXPORT void *pmix_info_list_start(void)
     return p;
 }
 
-PMIX_EXPORT pmix_status_t pmix_info_list_add(void *ptr, const char *key, void *value,
+PMIX_EXPORT pmix_status_t PMIx_Info_list_add(void *ptr,
+                                             const char *key,
+                                             const void *value,
                                              pmix_data_type_t type)
 {
     pmix_list_t *p = (pmix_list_t *) ptr;
@@ -1164,7 +1322,8 @@ PMIX_EXPORT pmix_status_t pmix_info_list_add(void *ptr, const char *key, void *v
     return PMIX_SUCCESS;
 }
 
-PMIX_EXPORT pmix_status_t pmix_info_list_xfer(void *ptr, const pmix_info_t *info)
+PMIX_EXPORT pmix_status_t PMIx_Info_list_insert(void *ptr,
+                                                pmix_info_t *info)
 {
     pmix_list_t *p = (pmix_list_t *) ptr;
     pmix_infolist_t *iptr;
@@ -1173,12 +1332,31 @@ PMIX_EXPORT pmix_status_t pmix_info_list_xfer(void *ptr, const pmix_info_t *info
     if (NULL == iptr) {
         return PMIX_ERR_NOMEM;
     }
-    PMIX_INFO_XFER(&iptr->info, info);
+    /* we want to preserve any pointers in the provided
+     * info struct so the result points to the same
+     * memory location */
+    memcpy(&iptr->info, info, sizeof(pmix_info_t));
+    // mark that this value should not be released
+    PMIX_INFO_SET_PERSISTENT(&iptr->info);
     pmix_list_append(p, &iptr->super);
     return PMIX_SUCCESS;
 }
 
-PMIX_EXPORT pmix_status_t pmix_info_list_convert(void *ptr, pmix_data_array_t *par)
+PMIX_EXPORT pmix_status_t PMIx_Info_list_xfer(void *ptr, const pmix_info_t *info)
+{
+    pmix_list_t *p = (pmix_list_t *) ptr;
+    pmix_infolist_t *iptr;
+
+    iptr = PMIX_NEW(pmix_infolist_t);
+    if (NULL == iptr) {
+        return PMIX_ERR_NOMEM;
+    }
+    PMIx_Info_xfer(&iptr->info, info);
+    pmix_list_append(p, &iptr->super);
+    return PMIX_SUCCESS;
+}
+
+PMIX_EXPORT pmix_status_t PMIx_Info_list_convert(void *ptr, pmix_data_array_t *par)
 {
     pmix_list_t *p = (pmix_list_t *) ptr;
     size_t n;
@@ -1188,6 +1366,7 @@ PMIX_EXPORT pmix_status_t pmix_info_list_convert(void *ptr, pmix_data_array_t *p
     if (NULL == par || NULL == ptr) {
         return PMIX_ERR_BAD_PARAM;
     }
+    PMIX_DATA_ARRAY_INIT(par, PMIX_INFO);
 
     n = pmix_list_get_size(p);
     if (0 == n) {
@@ -1204,14 +1383,14 @@ PMIX_EXPORT pmix_status_t pmix_info_list_convert(void *ptr, pmix_data_array_t *p
     /* transfer the elements across */
     n = 0;
     PMIX_LIST_FOREACH (iptr, p, pmix_infolist_t) {
-        PMIX_INFO_XFER(&array[n], &iptr->info);
+        PMIx_Info_xfer(&array[n], &iptr->info);
         ++n;
     }
 
     return PMIX_SUCCESS;
 }
 
-PMIX_EXPORT void pmix_info_list_release(void *ptr)
+PMIX_EXPORT void PMIx_Info_list_release(void *ptr)
 {
     pmix_list_t *p = (pmix_list_t *) ptr;
     PMIX_LIST_RELEASE(p);

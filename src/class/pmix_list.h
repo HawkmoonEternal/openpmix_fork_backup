@@ -14,7 +14,7 @@
  * Copyright (c) 2013      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -75,6 +75,7 @@
 #    include <stdbool.h>
 #endif
 
+#include "pmix_common.h"
 #include "src/class/pmix_object.h"
 
 BEGIN_C_DECLS
@@ -108,7 +109,7 @@ struct pmix_list_item_t {
 
 #if PMIX_ENABLE_DEBUG
     /** Atomic reference count for debugging */
-    pmix_atomic_int32_t pmix_list_item_refcount;
+    int32_t pmix_list_item_refcount;
     /** The list this item belong to */
     volatile struct pmix_list_t *pmix_list_item_belong_to;
 #endif
@@ -119,10 +120,12 @@ struct pmix_list_item_t {
 typedef struct pmix_list_item_t pmix_list_item_t;
 
 /* static initializer for pmix_list_t */
-#define PMIX_LIST_ITEM_STATIC_INIT                                            \
-    {                                                                         \
-        .super = PMIX_OBJ_STATIC_INIT(pmix_object_t), .pmix_list_next = NULL, \
-        .pmix_list_prev = NULL, .item_free = 0                                \
+#define PMIX_LIST_ITEM_STATIC_INIT                      \
+    {                                                   \
+        .super = PMIX_OBJ_STATIC_INIT(pmix_object_t),   \
+        .pmix_list_next = NULL,                         \
+        .pmix_list_prev = NULL,                         \
+        .item_free = 0                                  \
     }
 
 /**
@@ -164,10 +167,11 @@ struct pmix_list_t {
 typedef struct pmix_list_t pmix_list_t;
 
 /* static initializer for pmix_list_t */
-#define PMIX_LIST_STATIC_INIT                                                   \
-    {                                                                           \
-        .super = PMIX_OBJ_STATIC_INIT(pmix_object_t),                           \
-        .pmix_list_sentinel = PMIX_LIST_ITEM_STATIC_INIT, .pmix_list_length = 0 \
+#define PMIX_LIST_STATIC_INIT                               \
+    {                                                       \
+        .super = PMIX_OBJ_STATIC_INIT(pmix_object_t),       \
+        .pmix_list_sentinel = PMIX_LIST_ITEM_STATIC_INIT,   \
+        .pmix_list_length = 0                               \
     }
 
 /** Cleanly destruct a list
@@ -218,7 +222,11 @@ typedef struct pmix_list_t pmix_list_t;
          item != (type *) &(list)->pmix_list_sentinel;              \
          item = (type *) ((pmix_list_item_t *) (item))->pmix_list_next)
 
-/**
+#define PMIX_LIST_FOREACH_DECL(item, list, type)                          \
+    for (type *item = (type *) (list)->pmix_list_sentinel.pmix_list_next; \
+         item != (type *) &(list)->pmix_list_sentinel;                    \
+         item = (type *) ((pmix_list_item_t *) (item))->pmix_list_next)
+    /**
  * Loop over a list in reverse.
  *
  * @param[in] item Storage for each item
@@ -373,7 +381,7 @@ static inline pmix_list_item_t *pmix_list_get_last(pmix_list_t *list)
  * Similar to the STL, this is a special invalid list item -- it
  * should \em not be used for storage.  It is only suitable for
  * comparison to other items in the list to see if they are valid or
- * not; it's ususally used when iterating through the items in a list.
+ * not; it's usually used when iterating through the items in a list.
  *
  * This is an inlined function in compilers that support inlining, so
  * it's usually a cheap operation.
@@ -395,7 +403,7 @@ static inline pmix_list_item_t *pmix_list_get_begin(pmix_list_t *list)
  * Similar to the STL, this is a special invalid list item -- it
  * should \em not be used for storage.  It is only suitable for
  * comparison to other items in the list to see if they are valid or
- * not; it's ususally used when iterating through the items in a list.
+ * not; it's usually used when iterating through the items in a list.
  *
  * This is an inlined function in compilers that support inlining, so
  * it's usually a cheap operation.
@@ -606,7 +614,7 @@ static inline void pmix_list_prepend(pmix_list_t *list, pmix_list_item_t *item)
     /* reset item's previous pointer */
     item->pmix_list_prev = sentinel;
 
-    /* reset previous first element's previous poiner */
+    /* reset previous first element's previous pointer */
     sentinel->pmix_list_next->pmix_list_prev = item;
 
     /* reset head's next pointer */
@@ -662,7 +670,7 @@ static inline pmix_list_item_t *pmix_list_remove_first(pmix_list_t *list)
     list->pmix_list_length--;
 
     /* get pointer to first element on the list */
-    item = list->pmix_list_sentinel.pmix_list_next;
+    item = (pmix_list_item_t*)list->pmix_list_sentinel.pmix_list_next;
 
     /* reset previous pointer of next item on the list */
     item->pmix_list_next->pmix_list_prev = item->pmix_list_prev;
@@ -723,7 +731,7 @@ static inline pmix_list_item_t *pmix_list_remove_last(pmix_list_t *list)
     list->pmix_list_length--;
 
     /* get item */
-    item = list->pmix_list_sentinel.pmix_list_prev;
+    item = (pmix_list_item_t*)list->pmix_list_sentinel.pmix_list_prev;
 
     /* reset previous pointer on next to last pointer */
     item->pmix_list_prev->pmix_list_next = item->pmix_list_next;
@@ -805,7 +813,9 @@ static inline void pmix_list_insert_pos(pmix_list_t *list, pmix_list_item_t *pos
  * If index is greater than the length of the list, no action is
  * performed and false is returned.
  */
-bool pmix_list_insert(pmix_list_t *list, pmix_list_item_t *item, long long idx);
+PMIX_EXPORT bool pmix_list_insert(pmix_list_t *list,
+                                  pmix_list_item_t *item,
+                                  long long idx);
 
 /**
  * Join a list into another list
@@ -824,7 +834,9 @@ bool pmix_list_insert(pmix_list_t *list, pmix_list_item_t *item, long long idx);
  * containers remain valid, including those that point to elements
  * in \c xlist.
  */
-void pmix_list_join(pmix_list_t *thislist, pmix_list_item_t *pos, pmix_list_t *xlist);
+PMIX_EXPORT void pmix_list_join(pmix_list_t *thislist,
+                                pmix_list_item_t *pos,
+                                pmix_list_t *xlist);
 
 /**
  * Splice a list into another list
@@ -842,15 +854,18 @@ void pmix_list_join(pmix_list_t *thislist, pmix_list_item_t *pos, pmix_list_t *x
  * last) elements of \c xlist are moved into \c thislist,
  * inserting them before \c pos.  \c pos must be a valid iterator
  * in \c thislist and \c [first, last) must be a valid range in \c
- * xlist.  \c postition must not be in the range \c [first, last).
+ * xlist.  \c position must not be in the range \c [first, last).
  * It is, however, valid for \c xlist and \c thislist to be the
  * same list.
  *
  * This is an O(N) operation because the length of both lists must
  * be recomputed.
  */
-void pmix_list_splice(pmix_list_t *thislist, pmix_list_item_t *pos, pmix_list_t *xlist,
-                      pmix_list_item_t *first, pmix_list_item_t *last);
+PMIX_EXPORT void pmix_list_splice(pmix_list_t *thislist,
+                                  pmix_list_item_t *pos,
+                                  pmix_list_t *xlist,
+                                  pmix_list_item_t *first,
+                                  pmix_list_item_t *last);
 
 /**
  * Comparison function for pmix_list_sort(), below.
@@ -872,7 +887,8 @@ void pmix_list_splice(pmix_list_t *thislist, pmix_list_item_t *pos, pmix_list_t 
  * double pointers to the items that you need to compare.  Here's
  * a sample compare function to illustrate this point:
  */
-typedef int (*pmix_list_item_compare_fn_t)(pmix_list_item_t **a, pmix_list_item_t **b);
+typedef int (*pmix_list_item_compare_fn_t)(pmix_list_item_t **a,
+                                           pmix_list_item_t **b);
 
 /**
  * Sort a list with a provided compare function.
@@ -894,7 +910,8 @@ typedef int (*pmix_list_item_compare_fn_t)(pmix_list_item_t **a, pmix_list_item_
  * whatever the underlying type is).  See the documentation of
  * pmix_list_item_compare_fn_t for an example).
  */
-int pmix_list_sort(pmix_list_t *list, pmix_list_item_compare_fn_t compare);
+PMIX_EXPORT int pmix_list_sort(pmix_list_t *list,
+                               pmix_list_item_compare_fn_t compare);
 
 END_C_DECLS
 

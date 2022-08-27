@@ -16,7 +16,9 @@
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
  * Copyright (c) 2019      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting  All rights reserved.
+ * Copyright (c) 2022      Amazon.com, Inc. or its affiliates.
+ *                         All Rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -26,7 +28,7 @@
 
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include <pwd.h>
 #include <stdio.h>
@@ -35,17 +37,17 @@
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/printf.h"
+#include "src/util/pmix_printf.h"
 
 #define PMIX_DEFAULT_TMPDIR   "/tmp"
 #define PMIX_MAX_ENVAR_LENGTH 100000
 
 /*
  * Merge two environ-like char arrays, ensuring that there are no
- * duplicate entires
+ * duplicate entries
  */
 char **pmix_environ_merge(char **minor, char **major)
 {
@@ -97,121 +99,79 @@ char **pmix_environ_merge(char **minor, char **major)
     return ret;
 }
 
-/*
- * Portable version of setenv(), allowing editing of any environ-like
- * array
- */
-pmix_status_t pmix_setenv(const char *name, const char *value, bool overwrite, char ***env)
-{
-    int i;
-    char *newvalue, *compare;
-    size_t len;
-    bool valid;
 
-    /* Check the bozo case */
-    if (NULL == env) {
-        return PMIX_ERR_BAD_PARAM;
+pmix_status_t pmix_environ_merge_inplace(char ***orig, char **adders)
+{
+    pmix_status_t ret;
+
+    assert(*orig != environ);
+
+    for (size_t adders_idx = 0 ; adders[adders_idx] != NULL ; adders_idx++) {
+        const char *adder_string = adders[adders_idx];
+
+        /* See if the addr is in the original, because we only add.
+         * Don't use setenv, to avoid having to split the string,
+         * which is kind of expensive as we can't modify the strings
+         * in adders (and setenv is going to do this same search loop
+         * anyway).
+         */
+        if (NULL == pmix_getenv(adder_string, *orig)) {
+            /* note that append_nosize strdup()s the added argument,
+               so both orig and adders can later be freed */
+            ret = pmix_argv_append_nosize(orig, adder_string);
+            if (PMIX_SUCCESS != ret) {
+                return ret;
+            }
+        }
     }
 
-    if (NULL != value) {
-        /* check the string for unacceptable length - i.e., ensure
-         * it is NULL-terminated */
-        valid = false;
-        for (i = 0; i < PMIX_MAX_ENVAR_LENGTH; i++) {
-            if ('\0' == value[i]) {
-                valid = true;
+    return PMIX_SUCCESS;
+}
+
+
+char * pmix_getenv(const char *name, char **env)
+{
+    /* bozo case */
+    if (NULL == env) {
+        return NULL;
+    }
+
+    for (size_t env_idx = 0 ; env[env_idx] != NULL ; env_idx++) {
+        size_t str_idx = 0;
+
+        while (true) {
+            if (name[str_idx] == '\0') {
+                /* if name is a bare key, then finding an equals sign
+                 * in the env string at the same position as the
+                 * terminator is a match.
+                 */
+                if (env[env_idx][str_idx] == '=') {
+                    return &(env[env_idx][str_idx + 1]);
+                }
+
                 break;
             }
-        }
-        if (!valid) {
-            PMIX_ERROR_LOG(PMIX_ERR_BAD_PARAM);
-            return PMIX_ERR_BAD_PARAM;
-        }
-    }
 
-    /* If this is the "environ" array, use putenv or setenv */
-    if (*env == environ) {
-        /* THIS IS POTENTIALLY A MEMORY LEAK!  But I am doing it
-           because so that we don't violate the law of least
-           astonishmet for PMIX developers (i.e., those that don't
-           check the return code of pmix_setenv() and notice that we
-           returned an error if you passed in the real environ) */
-#if defined(HAVE_SETENV)
-        if (NULL == value) {
-            /* this is actually an unsetenv request */
-            unsetenv(name);
-        } else {
-            setenv(name, value, overwrite);
-        }
-#else
-        /* Make the new value */
-        if (NULL == value) {
-            i = asprintf(&newvalue, "%s=", name);
-        } else {
-            i = asprintf(&newvalue, "%s=%s", name, value);
-        }
-        if (NULL == newvalue || 0 > i) {
-            return PMIX_ERR_OUT_OF_RESOURCE;
-        }
-        putenv(newvalue);
-        /* cannot free it as putenv doesn't copy the value */
-#endif
-        return PMIX_SUCCESS;
-    }
-
-    /* Make the new value */
-    if (NULL == value) {
-        i = asprintf(&newvalue, "%s=", name);
-    } else {
-        i = asprintf(&newvalue, "%s=%s", name, value);
-    }
-    if (NULL == newvalue || 0 > i) {
-        return PMIX_ERR_OUT_OF_RESOURCE;
-    }
-
-    if (NULL == *env) {
-        i = 0;
-        pmix_argv_append(&i, env, newvalue);
-        free(newvalue);
-        return PMIX_SUCCESS;
-    }
-
-    /* Make something easy to compare to */
-
-    i = asprintf(&compare, "%s=", name);
-    if (NULL == compare || 0 > i) {
-        free(newvalue);
-        return PMIX_ERR_OUT_OF_RESOURCE;
-    }
-    len = strlen(compare);
-
-    /* Look for a duplicate that's already set in the env */
-
-    for (i = 0; (*env)[i] != NULL; ++i) {
-        if (0 == strncmp((*env)[i], compare, len)) {
-            if (overwrite) {
-                free((*env)[i]);
-                (*env)[i] = newvalue;
-                free(compare);
-                return PMIX_SUCCESS;
-            } else {
-                free(compare);
-                free(newvalue);
-                return PMIX_EXISTS;
+            if (env[env_idx][str_idx] == '\0') {
+                break;
             }
+
+            if (name[str_idx] != env[env_idx][str_idx]) {
+                break;
+            }
+
+            if (name[str_idx] == '=') {
+                /* we know that env[env_idx][str_idx] is also '=',
+                 * from the inequality check above, so this is a match
+                 */
+                return &(env[env_idx][str_idx + 1]);
+            }
+
+            str_idx++;
         }
     }
 
-    /* If we found no match, append this value */
-
-    i = pmix_argv_count(*env);
-    pmix_argv_append(&i, env, newvalue);
-
-    /* All done */
-
-    free(compare);
-    free(newvalue);
-    return PMIX_SUCCESS;
+    return NULL;
 }
 
 /*
@@ -277,7 +237,7 @@ const char *pmix_home_directory(uid_t uid)
 {
     const char *home = NULL;
 
-    if (uid == geteuid()) {
+    if (UINT_MAX == uid || uid == geteuid()) {
         home = getenv("HOME");
     }
     if (NULL == home) {
@@ -335,10 +295,12 @@ pmix_status_t pmix_util_harvest_envars(char **incvars, char **excvars, pmix_list
                 }
                 PMIX_KVAL_NEW(kv, PMIX_SET_ENVAR);
                 if (NULL == kv) {
+                    free(cs_env);
                     return PMIX_ERR_NOMEM;
                 }
                 if (NULL == kv->value) {
                     PMIX_RELEASE(kv);
+                    free(cs_env);
                     return PMIX_ERR_NOMEM;
                 }
                 kv->value->type = PMIX_ENVAR;

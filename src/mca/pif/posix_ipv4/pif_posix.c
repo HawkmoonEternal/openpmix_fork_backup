@@ -5,7 +5,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -14,7 +14,7 @@
  */
 
 #include "pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include <string.h>
 #ifdef HAVE_UNISTD_H
@@ -51,34 +51,26 @@
 
 #include "src/mca/pif/base/base.h"
 #include "src/mca/pif/pif.h"
-#include "src/util/output.h"
-#include "src/util/pif.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_if.h"
 
 static int if_posix_open(void);
 
 /* Supports all flavors of posix except those
  * BSD-flavors supported elsewhere
  */
-pmix_pif_base_component_t mca_pif_posix_ipv4_component = {
-    /* First, the mca_component_t struct containing meta information
-       about the component itself */
-    .base = {
-        PMIX_PIF_BASE_VERSION_2_0_0,
+pmix_pif_base_component_t pmix_mca_pif_posix_ipv4_component = {
+    PMIX_PIF_BASE_VERSION_2_0_0,
 
-        /* Component name and version */
-        "posix_ipv4",
-        PMIX_MAJOR_VERSION,
-        PMIX_MINOR_VERSION,
-        PMIX_RELEASE_VERSION,
+    /* Component name and version */
+    .pmix_mca_component_name = "posix_ipv4",
+    PMIX_MCA_BASE_MAKE_VERSION(component,
+                               PMIX_MAJOR_VERSION,
+                               PMIX_MINOR_VERSION,
+                               PMIX_RELEASE_VERSION),
 
-        /* Component open and close functions */
-        if_posix_open,
-        NULL
-    },
-    .data = {
-        /* This component is checkpointable */
-        PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT
-    },
+    /* Component open and close functions */
+    .pmix_mca_open_component = if_posix_open
 };
 
 /* convert a netmask (in network byte order) to CIDR notation */
@@ -108,6 +100,9 @@ static int if_posix_open(void)
     struct ifconf ifconf;
     int ifc_len;
     bool successful_locate = false;
+    struct ifreq *ifr;
+    pmix_pif_t *intf;
+    int length;
 
     /* Create the internet socket to test with.  Must use AF_INET;
        using AF_UNSPEC or AF_INET6 will cause everything to
@@ -138,7 +133,7 @@ static int if_posix_open(void)
     ifc_len = sizeof(struct ifreq) * DEFAULT_NUMBER_INTERFACES;
     do {
         ifconf.ifc_len = ifc_len;
-        ifconf.ifc_req = malloc(ifc_len);
+        ifconf.ifc_req = (struct ifreq *) malloc(ifc_len);
         if (NULL == ifconf.ifc_req) {
             close(sd);
             return PMIX_ERROR;
@@ -188,15 +183,14 @@ static int if_posix_open(void)
     /*
      * Setup indexes
      */
+    ifr = (struct ifreq *) malloc(ifc_len);
     ptr = (char *) ifconf.ifc_req;
     rem = ifconf.ifc_len;
 
     /* loop through all interfaces */
     while (rem > 0) {
-        struct ifreq *ifr = (struct ifreq *) ptr;
-        pmix_pif_t *intf;
-        int length;
-
+        memset(ifr, 0, ifc_len);
+        memcpy(ifr, ptr, rem);
         /* compute offset for entries */
 #ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
         length = sizeof(struct sockaddr);
@@ -244,6 +238,7 @@ static int if_posix_open(void)
                         (unsigned long) sizeof(pmix_pif_t));
             free(ifconf.ifc_req);
             close(sd);
+            free(ifr);
             return PMIX_ERR_OUT_OF_RESOURCE;
         }
         intf->af_family = AF_INET;
@@ -324,6 +319,6 @@ static int if_posix_open(void)
     }
     free(ifconf.ifc_req);
     close(sd);
-
+    free(ifr);
     return PMIX_SUCCESS;
 }

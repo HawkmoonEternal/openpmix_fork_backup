@@ -16,7 +16,7 @@
  * Copyright (c) 2019      Intel, Inc.  All rights reserved.
  * Copyright (c) 2019      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -32,7 +32,7 @@
 
 #include "pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "pstat_linux.h"
 #include "src/mca/pstat/pstat.h"
 
@@ -52,27 +52,18 @@ static int pstat_linux_component_query(pmix_mca_base_module_t **module, int *pri
  * and pointers to our public functions in it
  */
 
-const pmix_pstat_base_component_t mca_pstat_linux_component = {
+const pmix_pstat_base_component_t pmix_mca_pstat_linux_component = {
 
-    /* First, the mca_component_t struct containing meta information
-       about the component itself */
+    PMIX_PSTAT_BASE_VERSION_1_0_0,
 
-    .base_version = {
-        PMIX_PSTAT_BASE_VERSION_1_0_0,
+    /* Component name and version */
+    .pmix_mca_component_name = "linux",
+    PMIX_MCA_BASE_MAKE_VERSION(component,
+                               PMIX_MAJOR_VERSION,
+                               PMIX_MINOR_VERSION,
+                               PMIX_RELEASE_VERSION),
 
-        /* Component name and version */
-        .pmix_mca_component_name = "linux",
-        PMIX_MCA_BASE_MAKE_VERSION(component,
-                                   PMIX_MAJOR_VERSION,
-                                   PMIX_MINOR_VERSION,
-                                   PMIX_RELEASE_VERSION),
-
-        .pmix_mca_query_component = pstat_linux_component_query,
-    },
-    .base_data = {
-        /* The component is checkpoint ready */
-        PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT
-    },
+    .pmix_mca_query_component = pstat_linux_component_query,
 };
 
 static int pstat_linux_component_query(pmix_mca_base_module_t **module, int *priority)

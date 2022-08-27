@@ -23,7 +23,7 @@ AC_DEFUN([_PMIX_CFLAGS_FAIL_SEARCH],[
 AC_DEFUN([_PMIX_CHECK_SPECIFIC_CFLAGS], [
 AC_MSG_CHECKING(if $CC supports ([$1]))
             CFLAGS_orig=$CFLAGS
-            CFLAGS="$CFLAGS $1"
+            PMIX_APPEND_UNIQ([CFLAGS], ["$1"])
             AC_CACHE_VAL(pmix_cv_cc_[$2], [
                    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([], [$3])],
                                    [
@@ -31,7 +31,7 @@ AC_MSG_CHECKING(if $CC supports ([$1]))
                                     _PMIX_CFLAGS_FAIL_SEARCH("ignored\|not recognized\|not supported\|not compatible\|unrecognized\|unknown", [$2])
                                    ],
                                     pmix_cv_cc_[$2]=1
-                                    _PMIX_CFLAGS_FAIL_SEARCH("ignored\|not recognized\|not supported\|not compatible\|unrecognized\|unknown\|error", [$2])
+                                    _PMIX_CFLAGS_FAIL_SEARCH("ignored\|not recognized\|not supported\|not compatible\|unrecognized\|unknown", [$2])
                                  )])
             if test "$pmix_cv_cc_[$2]" = "0" ; then
                 CFLAGS="$CFLAGS_orig"

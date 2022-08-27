@@ -6,7 +6,7 @@
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2015-2018 Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -19,7 +19,7 @@
 #define TEST_COMMON_H
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -30,7 +30,7 @@
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/argv.h"
+#include "src/util/pmix_argv.h"
 
 #define TEST_NAMESPACE  "smoky_nspace"
 #define TEST_CREDENTIAL "dummy"
@@ -99,11 +99,11 @@ extern FILE *file;
         char *fname = malloc(strlen(prefix) + MAX_DIGIT_LEN + 2);       \
         sprintf(fname, "%s.%d.%d", prefix, ns_id, rank);                \
         file = fopen(fname, "w");                                       \
-        free(fname);                                                    \
         if (NULL == file) {                                             \
             fprintf(stderr, "Cannot open file %s for writing!", fname); \
             exit(1);                                                    \
         }                                                               \
+        free(fname);                                                    \
     }
 
 #define TEST_CLOSE_FILE()     \
@@ -279,7 +279,7 @@ typedef struct {
         TEST_VERBOSE(("%s:%d want to get from %s:%d key %s", my_nspace, my_rank, ns, r, _key));   \
         if (blocking) {                                                                           \
             if (PMIX_SUCCESS != (rc = PMIx_Get(&_foobar, _key, NULL, 0, &_val))) {                \
-                if (!((rc == PMIX_ERR_NOT_FOUND || rc == PMIX_ERR_PROC_ENTRY_NOT_FOUND)           \
+                if (!((rc == PMIX_ERR_NOT_FOUND || rc == PMIX_ERR_NOT_FOUND)           \
                       && ok_notfnd)) {                                                            \
                     TEST_ERROR(("%s:%d: PMIx_Get failed: %s from %s:%d, key %s", my_nspace,       \
                                 my_rank, PMIx_Error_string(rc), ns, r, _key));                    \
@@ -309,8 +309,7 @@ typedef struct {
         }                                                                                         \
         if (PMIX_SUCCESS == rc) {                                                                 \
             if (PMIX_SUCCESS != _cbdata.status) {                                                 \
-                if (!((_cbdata.status == PMIX_ERR_NOT_FOUND                                       \
-                       || _cbdata.status == PMIX_ERR_PROC_ENTRY_NOT_FOUND)                        \
+                if (!((_cbdata.status == PMIX_ERR_NOT_FOUND)                                      \
                       && ok_notfnd)) {                                                            \
                     TEST_ERROR(("%s:%d: PMIx_Get_nb failed: %s from %s:%d, key=%s", my_nspace,    \
                                 my_rank, PMIx_Error_string(rc), my_nspace, r, _key));             \
@@ -339,8 +338,8 @@ typedef struct {
             if (data_ex) {                                                                     \
                 bool _value = 1;                                                               \
                 PMIX_INFO_CREATE(_info, 1);                                                    \
-                (void) strncpy(_info->key, PMIX_COLLECT_DATA, PMIX_MAX_KEYLEN);                \
-                pmix_value_load(&_info->value, &_value, PMIX_BOOL);                            \
+                pmix_strncpy(_info->key, PMIX_COLLECT_DATA, PMIX_MAX_KEYLEN);                \
+                PMIx_Value_load(&_info->value, &_value, PMIX_BOOL);                            \
                 _ninfo = 1;                                                                    \
             }                                                                                  \
             rc = PMIx_Fence(pcs, nprocs, _info, _ninfo);                                       \

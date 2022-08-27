@@ -13,7 +13,7 @@
  * Copyright (c) 2015      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -28,14 +28,14 @@
  */
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/include/pmix_globals.h"
-#include "src/include/types.h"
+#include "src/include/pmix_types.h"
 
 #include "bfrop_pmix4.h"
 #include "src/mca/bfrops/base/base.h"
 #include "src/server/pmix_server_ops.h"
-#include "src/util/error.h"
+#include "src/util/pmix_error.h"
 
 extern pmix_bfrops_module_t pmix_bfrops_pmix4_module;
 
@@ -48,7 +48,7 @@ static pmix_bfrops_module_t *assign_module(void);
  * Instantiate the public struct with all of our public information
  * and pointers to our public functions in it
  */
-pmix_bfrops_base_component_t mca_bfrops_v4_component = {
+pmix_bfrops_base_component_t pmix_mca_bfrops_v4_component = {
     .base = {
         PMIX_BFROPS_BASE_VERSION_1_0_0,
 
@@ -69,8 +69,8 @@ pmix_bfrops_base_component_t mca_bfrops_v4_component = {
 pmix_status_t component_open(void)
 {
     /* setup the types array */
-    PMIX_CONSTRUCT(&mca_bfrops_v4_component.types, pmix_pointer_array_t);
-    pmix_pointer_array_init(&mca_bfrops_v4_component.types, 42, INT_MAX, 16);
+    PMIX_CONSTRUCT(&pmix_mca_bfrops_v4_component.types, pmix_pointer_array_t);
+    pmix_pointer_array_init(&pmix_mca_bfrops_v4_component.types, 42, INT_MAX, 16);
 
     return PMIX_SUCCESS;
 }
@@ -78,14 +78,14 @@ pmix_status_t component_open(void)
 pmix_status_t component_query(pmix_mca_base_module_t **module, int *priority)
 {
 
-    *priority = mca_bfrops_v4_component.priority;
+    *priority = pmix_mca_bfrops_v4_component.priority;
     *module = (pmix_mca_base_module_t *) &pmix_bfrops_pmix4_module;
     return PMIX_SUCCESS;
 }
 
 pmix_status_t component_close(void)
 {
-    PMIX_DESTRUCT(&mca_bfrops_v4_component.types);
+    PMIX_DESTRUCT(&pmix_mca_bfrops_v4_component.types);
     return PMIX_SUCCESS;
 }
 

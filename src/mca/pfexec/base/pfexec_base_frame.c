@@ -16,7 +16,7 @@
  * Copyright (c) 2014-2018 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2017-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -25,8 +25,8 @@
  */
 
 #include "pmix_config.h"
-#include "include/pmix_common.h"
-#include "src/include/types.h"
+#include "pmix_common.h"
+#include "src/include/pmix_types.h"
 
 #include <signal.h>
 #include <string.h>
@@ -37,10 +37,10 @@
 #include "src/client/pmix_client_ops.h"
 #include "src/common/pmix_iof.h"
 #include "src/include/pmix_globals.h"
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/mca.h"
-#include "src/threads/threads.h"
-#include "src/util/error.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_error.h"
 
 #include "src/mca/pfexec/base/base.h"
 
@@ -55,12 +55,23 @@
 /*
  * Instantiate globals
  */
-pmix_pfexec_base_module_t pmix_pfexec = {0};
+pmix_pfexec_base_module_t pmix_pfexec = {
+    .spawn_job = NULL,
+    .kill_proc = NULL,
+    .signal_proc = NULL
+};
 
 /*
  * Framework global variables
  */
-pmix_pfexec_globals_t pmix_pfexec_globals = {0};
+pmix_pfexec_globals_t pmix_pfexec_globals = {
+    .handler = NULL,
+    .active = false,
+    .children = PMIX_LIST_STATIC_INIT,
+    .timeout_before_sigkill = 0,
+    .nextid = 0,
+    .selected = false
+};
 
 static int pmix_pfexec_base_close(void)
 {
@@ -168,11 +179,10 @@ static int pmix_pfexec_register(pmix_mca_base_register_flag_t flags)
 {
     (void) flags;
     pmix_pfexec_globals.timeout_before_sigkill = 1;
-    pmix_mca_base_var_register(
-        "pmix", "pfexec", "base", "sigkill_timeout",
-        "Time to wait for a process to die after issuing a kill signal to it",
-        PMIX_MCA_BASE_VAR_TYPE_INT, NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_2,
-        PMIX_MCA_BASE_VAR_SCOPE_READONLY, &pmix_pfexec_globals.timeout_before_sigkill);
+    pmix_mca_base_var_register("pmix", "pfexec", "base", "sigkill_timeout",
+                               "Time to wait for a process to die after issuing a kill signal to it",
+                               PMIX_MCA_BASE_VAR_TYPE_INT,
+                               &pmix_pfexec_globals.timeout_before_sigkill);
     return PMIX_SUCCESS;
 }
 
@@ -215,7 +225,7 @@ static int pmix_pfexec_base_open(pmix_mca_base_open_flag_t flags)
 
 PMIX_MCA_BASE_FRAMEWORK_DECLARE(pmix, pfexec, "PMIx fork/exec Subsystem", pmix_pfexec_register,
                                 pmix_pfexec_base_open, pmix_pfexec_base_close,
-                                mca_pfexec_base_static_components,
+                                pmix_mca_pfexec_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 /**** FRAMEWORK CLASS INSTANTIATIONS ****/
@@ -235,11 +245,13 @@ static void chcon(pmix_pfexec_child_t *p)
     p->opts.p_stdout[1] = -1;
     p->opts.p_stderr[0] = -1;
     p->opts.p_stderr[1] = -1;
+    PMIX_CONSTRUCT(&p->stdinsink, pmix_iof_sink_t);
     p->stdoutev = NULL;
     p->stderrev = NULL;
 }
 static void chdes(pmix_pfexec_child_t *p)
 {
+    PMIX_DESTRUCT(&p->stdinsink);
     if (NULL != p->stdoutev) {
         PMIX_RELEASE(p->stdoutev);
     }
@@ -253,7 +265,9 @@ static void chdes(pmix_pfexec_child_t *p)
         close(p->keepalive[1]);
     }
 }
-PMIX_CLASS_INSTANCE(pmix_pfexec_child_t, pmix_list_item_t, chcon, chdes);
+PMIX_CLASS_INSTANCE(pmix_pfexec_child_t,
+                    pmix_list_item_t,
+                    chcon, chdes);
 
 static void fccon(pmix_pfexec_fork_caddy_t *p)
 {
@@ -265,8 +279,11 @@ static void fccon(pmix_pfexec_fork_caddy_t *p)
     p->cbfunc = NULL;
     p->cbdata = NULL;
 }
-PMIX_CLASS_INSTANCE(pmix_pfexec_fork_caddy_t, pmix_object_t, fccon, NULL);
+PMIX_CLASS_INSTANCE(pmix_pfexec_fork_caddy_t,
+                    pmix_object_t, fccon, NULL);
 
-PMIX_CLASS_INSTANCE(pmix_pfexec_signal_caddy_t, pmix_object_t, NULL, NULL);
+PMIX_CLASS_INSTANCE(pmix_pfexec_signal_caddy_t,
+                    pmix_object_t, NULL, NULL);
 
-PMIX_CLASS_INSTANCE(pmix_pfexec_cmpl_caddy_t, pmix_object_t, NULL, NULL);
+PMIX_CLASS_INSTANCE(pmix_pfexec_cmpl_caddy_t,
+                    pmix_object_t, NULL, NULL);

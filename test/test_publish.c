@@ -2,7 +2,7 @@
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015      Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -24,6 +24,9 @@ typedef struct {
 static void release_cb(pmix_status_t status, void *cbdata)
 {
     int *ptr = (int *) cbdata;
+
+    PMIX_HIDE_UNUSED_PARAMS(status);
+
     *ptr = 0;
 }
 
@@ -33,14 +36,16 @@ static void lookup_cb(pmix_status_t status, pmix_pdata_t pdata[], size_t npdata,
     lookup_cbdata *cb = (lookup_cbdata *) cbdata;
     pmix_pdata_t *tgt = cb->pdata;
 
+    PMIX_HIDE_UNUSED_PARAMS(status);
+
     /* find the matching key in the provided info array - error if not found */
     for (i = 0; i < npdata; i++) {
         for (j = 0; j < cb->npdata; j++) {
             if (0 == strcmp(pdata[i].key, tgt[j].key)) {
                 /* transfer the value to the pmix_pdata_t */
-                (void) strncpy(tgt[j].proc.nspace, pdata[i].proc.nspace, PMIX_MAX_NSLEN);
+                pmix_strncpy(tgt[j].proc.nspace, pdata[i].proc.nspace, PMIX_MAX_NSLEN);
                 tgt[j].proc.rank = pdata[i].proc.rank;
-                pmix_value_xfer(&tgt[j].value, &pdata[i].value);
+                PMIx_Value_xfer(&tgt[j].value, &pdata[i].value);
                 break;
             }
         }
@@ -98,7 +103,7 @@ static int test_lookup(char *my_nspace, int my_rank, int blocking)
         cbdata.npdata = 1;
         cbdata.pdata = &pdata;
         /* copy the key across */
-        (void) strncpy(pdata.key, keys[0], PMIX_MAX_KEYLEN);
+        pmix_strncpy(pdata.key, keys[0], PMIX_MAX_KEYLEN);
         rc = PMIx_Lookup_nb(keys, NULL, 0, lookup_cb, (void *) &cbdata);
         if (PMIX_SUCCESS != rc) {
             PMIX_PDATA_DESTRUCT(&pdata);

@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -16,11 +16,11 @@
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/hash.h"
-#include "src/util/name_fns.h"
-#include "src/util/output.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_hash.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_output.h"
 
 #include "src/mca/gds/gds.h"
 
@@ -33,7 +33,7 @@ typedef struct {
 } pmix_gds_hash_component_t;
 
 /* the component must be visible data for the linker to find it */
-PMIX_EXPORT extern pmix_gds_hash_component_t mca_gds_hash_component;
+PMIX_EXPORT extern pmix_gds_hash_component_t pmix_mca_gds_hash_component;
 extern pmix_gds_base_module_t pmix_hash_module;
 
 /* Define a bitmask to track what information may not have
@@ -98,6 +98,9 @@ extern pmix_status_t pmix_gds_hash_process_session_array(pmix_value_t *val, pmix
 
 extern pmix_job_t *pmix_gds_hash_get_tracker(const pmix_nspace_t nspace, bool create);
 
+extern pmix_session_t* pmix_gds_hash_check_session(pmix_job_t *trk,
+                                                   uint32_t sid);
+
 extern bool pmix_gds_hash_check_hostname(char *h1, char *h2);
 
 extern bool pmix_gds_hash_check_node(pmix_nodeinfo_t *n1, pmix_nodeinfo_t *n2);
@@ -111,6 +114,11 @@ extern pmix_status_t pmix_gds_hash_fetch(const pmix_proc_t *proc, pmix_scope_t s
                                          const char *key, pmix_info_t qualifiers[], size_t nqual,
                                          pmix_list_t *kvs);
 
+extern pmix_status_t pmix_gds_hash_fetch_sessioninfo(const char *key,
+                                                     pmix_job_t *trk,
+                                                     pmix_info_t *info, size_t ninfo,
+                                                     pmix_list_t *kvs);
+
 extern pmix_status_t pmix_gds_hash_fetch_nodeinfo(const char *key, pmix_job_t *trk,
                                                   pmix_list_t *tgt, pmix_info_t *info, size_t ninfo,
                                                   pmix_list_t *kvs);
@@ -120,6 +128,12 @@ extern pmix_status_t pmix_gds_hash_fetch_appinfo(const char *key, pmix_job_t *tr
 
 extern pmix_status_t pmix_gds_hash_store(const pmix_proc_t *proc, pmix_scope_t scope,
                                          pmix_kval_t *kv);
+
+extern pmix_status_t pmix_gds_hash_store_qualified(pmix_hash_table_t *ht,
+                                                   pmix_rank_t rank,
+                                                   pmix_value_t *value);
+
+extern pmix_status_t pmix_gds_hash_fetch_arrays(struct pmix_peer_t *pr, pmix_buffer_t *reply);
 
 END_C_DECLS
 

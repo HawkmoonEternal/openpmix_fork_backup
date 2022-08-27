@@ -13,7 +13,7 @@
  * Copyright (c) 2015      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -28,63 +28,43 @@
  */
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
+
+#include "src/class/pmix_hash_table.h"
+#include "src/util/pmix_hash.h"
 
 #include "gds_hash.h"
 #include "src/mca/gds/gds.h"
 
-static pmix_status_t component_open(void);
-static pmix_status_t component_close(void);
 static pmix_status_t component_query(pmix_mca_base_module_t **module, int *priority);
 
 /*
  * Instantiate the public struct with all of our public information
  * and pointers to our public functions in it
  */
-pmix_gds_hash_component_t mca_gds_hash_component = {
+pmix_gds_hash_component_t pmix_mca_gds_hash_component = {
     .super = {
-        .base = {
-            PMIX_GDS_BASE_VERSION_1_0_0,
+        PMIX_GDS_BASE_VERSION_1_0_0,
 
-            /* Component name and version */
-            .pmix_mca_component_name = "hash",
-            PMIX_MCA_BASE_MAKE_VERSION(component,
-                                       PMIX_MAJOR_VERSION,
-                                       PMIX_MINOR_VERSION,
-                                       PMIX_RELEASE_VERSION),
+        /* Component name and version */
+        .pmix_mca_component_name = "hash",
+        PMIX_MCA_BASE_MAKE_VERSION(component,
+                                   PMIX_MAJOR_VERSION,
+                                   PMIX_MINOR_VERSION,
+                                   PMIX_RELEASE_VERSION),
 
-            /* Component open and close functions */
-            .pmix_mca_open_component = component_open,
-            .pmix_mca_close_component = component_close,
-            .pmix_mca_query_component = component_query,
-        },
-        .data = {
-            /* The component is checkpoint ready */
-            PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT
-        }
+        /* Component open and close functions */
+        .pmix_mca_query_component = component_query,
+        .reserved = {0}
     },
+    .mysessions = PMIX_LIST_STATIC_INIT,
+    .myjobs = PMIX_LIST_STATIC_INIT
 };
-
-static int component_open(void)
-{
-    PMIX_CONSTRUCT(&mca_gds_hash_component.mysessions, pmix_list_t);
-    PMIX_CONSTRUCT(&mca_gds_hash_component.myjobs, pmix_list_t);
-
-    return PMIX_SUCCESS;
-}
 
 static int component_query(pmix_mca_base_module_t **module, int *priority)
 {
     *priority = 10;
     *module = (pmix_mca_base_module_t *) &pmix_hash_module;
-    return PMIX_SUCCESS;
-}
-
-static int component_close(void)
-{
-    PMIX_LIST_DESTRUCT(&mca_gds_hash_component.mysessions);
-    PMIX_LIST_DESTRUCT(&mca_gds_hash_component.myjobs);
-
     return PMIX_SUCCESS;
 }
 
@@ -110,10 +90,13 @@ static void htcon(pmix_job_t *p)
     PMIX_CONSTRUCT(&p->jobinfo, pmix_list_t);
     PMIX_CONSTRUCT(&p->internal, pmix_hash_table_t);
     pmix_hash_table_init(&p->internal, 256);
+    p->internal.ht_label = "internal";
     PMIX_CONSTRUCT(&p->remote, pmix_hash_table_t);
     pmix_hash_table_init(&p->remote, 256);
+    p->remote.ht_label = "remote";
     PMIX_CONSTRUCT(&p->local, pmix_hash_table_t);
     pmix_hash_table_init(&p->local, 256);
+    p->local.ht_label = "local";
     p->gdata_added = false;
     PMIX_CONSTRUCT(&p->apps, pmix_list_t);
     PMIX_CONSTRUCT(&p->nodeinfo, pmix_list_t);
@@ -153,9 +136,6 @@ static void apdes(pmix_apptrkr_t *p)
 {
     PMIX_LIST_DESTRUCT(&p->appinfo);
     PMIX_LIST_DESTRUCT(&p->nodeinfo);
-    if (NULL != p->job) {
-        PMIX_RELEASE(p->job);
-    }
 }
 PMIX_CLASS_INSTANCE(pmix_apptrkr_t, pmix_list_item_t, apcon, apdes);
 

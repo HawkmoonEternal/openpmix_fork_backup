@@ -17,7 +17,7 @@
  * Copyright (c) 2015-2019 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -29,7 +29,7 @@
 #include "src/include/pmix_config.h"
 #include "include/pmix_server.h"
 #include "src/include/pmix_globals.h"
-#include "src/include/types.h"
+#include "src/include/pmix_types.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -42,10 +42,10 @@
 
 #include "src/class/pmix_list.h"
 #include "src/runtime/pmix_progress_threads.h"
-#include "src/util/argv.h"
-#include "src/util/output.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/printf.h"
+#include "src/util/pmix_printf.h"
 
 #include "simptest.h"
 
@@ -99,27 +99,34 @@ static pmix_status_t jctrl_fn(const pmix_proc_t *requestor, const pmix_proc_t ta
 static pmix_status_t mon_fn(const pmix_proc_t *requestor, const pmix_info_t *monitor,
                             pmix_status_t error, const pmix_info_t directives[], size_t ndirs,
                             pmix_info_cbfunc_t cbfunc, void *cbdata);
+static pmix_status_t grp_fn(pmix_group_operation_t op, char *gpid,
+                            const pmix_proc_t procs[], size_t nprocs,
+                            const pmix_info_t directives[], size_t ndirs,
+                            pmix_info_cbfunc_t cbfunc, void *cbdata);
 
-static pmix_server_module_t mymodule = {.client_connected = connected,
-                                        .client_finalized = finalized,
-                                        .abort = abort_fn,
-                                        .fence_nb = fencenb_fn,
-                                        .direct_modex = dmodex_fn,
-                                        .publish = publish_fn,
-                                        .lookup = lookup_fn,
-                                        .unpublish = unpublish_fn,
-                                        .spawn = spawn_fn,
-                                        .connect = connect_fn,
-                                        .disconnect = disconnect_fn,
-                                        .register_events = register_event_fn,
-                                        .deregister_events = deregister_events,
-                                        .notify_event = notify_event,
-                                        .query = query_fn,
-                                        .tool_connected = tool_connect_fn,
-                                        .log = log_fn,
-                                        .allocate = alloc_fn,
-                                        .job_control = jctrl_fn,
-                                        .monitor = mon_fn};
+static pmix_server_module_t mymodule = {
+    .client_connected = connected,
+    .client_finalized = finalized,
+    .abort = abort_fn,
+    .fence_nb = fencenb_fn,
+    .direct_modex = dmodex_fn,
+    .publish = publish_fn,
+    .lookup = lookup_fn,
+    .unpublish = unpublish_fn,
+    .spawn = spawn_fn,
+    .connect = connect_fn,
+    .disconnect = disconnect_fn,
+    .register_events = register_event_fn,
+    .deregister_events = deregister_events,
+    .notify_event = notify_event,
+    .query = query_fn,
+    .tool_connected = tool_connect_fn,
+    .log = log_fn,
+    .allocate = alloc_fn,
+    .job_control = jctrl_fn,
+    .monitor = mon_fn,
+    .group = grp_fn
+};
 
 typedef struct {
     pmix_list_item_t super;
@@ -137,6 +144,7 @@ typedef struct {
     pmix_op_cbfunc_t cbfunc;
     pmix_spawn_cbfunc_t spcbfunc;
     pmix_release_cbfunc_t relcbfunc;
+    pmix_info_cbfunc_t infocbfunc;
     void *cbdata;
 } myxfer_t;
 static void xfcon(myxfer_t *p)
@@ -187,6 +195,7 @@ static void errhandler_reg_callbk(pmix_status_t status, size_t errhandler_ref, v
 static void opcbfunc(pmix_status_t status, void *cbdata)
 {
     myxfer_t *x = (myxfer_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(status);
 
     /* release the caller, if necessary */
     if (NULL != x->cbfunc) {
@@ -198,6 +207,7 @@ static void opcbfunc(pmix_status_t status, void *cbdata)
 static void dlcbfunc(int sd, short flags, void *cbdata)
 {
     myxfer_t *x = (myxfer_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(sd, flags);
 
     PMIx_server_deliver_inventory(x->info, x->ninfo, NULL, 0, opcbfunc, (void *) x);
 }
@@ -236,6 +246,7 @@ static void setup_cbfunc(pmix_status_t status, pmix_info_t info[], size_t ninfo,
 {
     myxfer_t *x = (myxfer_t *) provided_cbdata;
     size_t n;
+    PMIX_HIDE_UNUSED_PARAMS(status);
 
     /* transfer it to the caddy for return to the main thread */
     if (0 < ninfo) {
@@ -268,6 +279,7 @@ static void model_callback(size_t evhdlr_registration_id, pmix_status_t status,
                            pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
     size_t n;
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, status, source, results, nresults);
 
     /* just let us know it was received */
     fprintf(stderr, "SIMPTEST: Model event handler called with status %d(%s)\n", status,
@@ -465,7 +477,7 @@ int main(int argc, char **argv)
     DEBUG_DESTRUCT_LOCK(&mylock);
 
     /* fork/exec the test */
-    (void) strncpy(proc.nspace, "foobar", PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, "foobar", PMIX_MAX_NSLEN);
     for (n = 0; n < nprocs; n++) {
         proc.rank = n;
         if (PMIX_SUCCESS != (rc = PMIx_server_setup_fork(&proc, &client_env))) {
@@ -622,7 +634,7 @@ static void set_namespace(int nprocs, char *nspace, pmix_op_cbfunc_t cbfunc, myx
     PMIX_INFO_CREATE(x->info, x->ninfo);
 
     n = 0;
-    (void) strncpy(x->info[n].key, PMIX_JOB_INFO_ARRAY, PMIX_MAX_KEYLEN);
+    pmix_strncpy(x->info[n].key, PMIX_JOB_INFO_ARRAY, PMIX_MAX_KEYLEN);
     x->info[n].value.type = PMIX_DATA_ARRAY;
     if (model) {
         PMIX_DATA_ARRAY_CREATE(x->info[n].value.data.darray, 10, PMIX_INFO);
@@ -684,7 +696,7 @@ static void set_namespace(int nprocs, char *nspace, pmix_op_cbfunc_t cbfunc, myx
 
     /* create the node-info arrays */
     for (m = 0; m < nnodes; m++) {
-        (void) strncpy(x->info[n].key, PMIX_NODE_INFO_ARRAY, PMIX_MAX_KEYLEN);
+        pmix_strncpy(x->info[n].key, PMIX_NODE_INFO_ARRAY, PMIX_MAX_KEYLEN);
         x->info[n].value.type = PMIX_DATA_ARRAY;
         PMIX_DATA_ARRAY_CREATE(x->info[n].value.data.darray, 3, PMIX_INFO);
         iptr = (pmix_info_t *) x->info[n].value.data.darray->array;
@@ -696,36 +708,36 @@ static void set_namespace(int nprocs, char *nspace, pmix_op_cbfunc_t cbfunc, myx
 
     /* add the proc-specific data */
     for (m = 0; m < nprocs; m++) {
-        (void) strncpy(x->info[n].key, PMIX_PROC_DATA, PMIX_MAX_KEYLEN);
+        pmix_strncpy(x->info[n].key, PMIX_PROC_DATA, PMIX_MAX_KEYLEN);
         x->info[n].value.type = PMIX_DATA_ARRAY;
         PMIX_DATA_ARRAY_CREATE(array, 6, PMIX_INFO);
         x->info[n].value.data.darray = array;
         info = (pmix_info_t *) array->array;
         k = 0;
-        (void) strncpy(info[k].key, PMIX_RANK, PMIX_MAX_KEYLEN);
+        pmix_strncpy(info[k].key, PMIX_RANK, PMIX_MAX_KEYLEN);
         info[k].value.type = PMIX_PROC_RANK;
         info[k].value.data.rank = m;
         ++k;
-        (void) strncpy(info[k].key, PMIX_GLOBAL_RANK, PMIX_MAX_KEYLEN);
+        pmix_strncpy(info[k].key, PMIX_GLOBAL_RANK, PMIX_MAX_KEYLEN);
         info[k].value.type = PMIX_PROC_RANK;
         info[k].value.data.rank = m;
         ++k;
-        (void) strncpy(info[k].key, PMIX_LOCAL_RANK, PMIX_MAX_KEYLEN);
+        pmix_strncpy(info[k].key, PMIX_LOCAL_RANK, PMIX_MAX_KEYLEN);
         info[k].value.type = PMIX_UINT16;
         info[k].value.data.uint16 = m;
         ++k;
 
-        (void) strncpy(info[k].key, PMIX_NODE_RANK, PMIX_MAX_KEYLEN);
+        pmix_strncpy(info[k].key, PMIX_NODE_RANK, PMIX_MAX_KEYLEN);
         info[k].value.type = PMIX_UINT16;
         info[k].value.data.uint16 = m;
         ++k;
 
-        (void) strncpy(info[k].key, PMIX_NODEID, PMIX_MAX_KEYLEN);
+        pmix_strncpy(info[k].key, PMIX_NODEID, PMIX_MAX_KEYLEN);
         info[k].value.type = PMIX_UINT32;
         info[k].value.data.uint32 = m % 3;
         ++k;
 
-        (void) strncpy(info[k].key, PMIX_HOSTNAME, PMIX_MAX_KEYLEN);
+        pmix_strncpy(info[k].key, PMIX_HOSTNAME, PMIX_MAX_KEYLEN);
         info[k].value.type = PMIX_STRING;
         info[k].value.data.string = strdup(pmix_globals.hostname);
         ++k;
@@ -741,7 +753,19 @@ static void errhandler(size_t evhdlr_registration_id, pmix_status_t status,
                        pmix_info_t results[], size_t nresults,
                        pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
-    pmix_output(0, "SERVER: ERRHANDLER CALLED WITH STATUS %d", status);
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, source, info, ninfo, results, nresults);
+
+    pmix_output(0, "SERVER: ERRHANDLER CALLED WITH STATUS %s", PMIx_Error_string(status));
+
+    if (PMIX_ERR_LOST_CONNECTION == status) {
+        // give the procs a chance to do something
+        usleep(10000);
+        /* let the other clients know */
+        PMIx_Notify_event(PMIX_ERR_PROC_ABORTED, &pmix_globals.myid,
+                          PMIX_RANGE_LOCAL, NULL, 0,
+                          NULL, NULL);
+    }
+
     /* we must NOT tell the event handler state machine that we
      * are the last step as that will prevent it from notifying
      * anyone else that might be listening for declarations */
@@ -753,6 +777,7 @@ static void errhandler(size_t evhdlr_registration_id, pmix_status_t status,
 static void errhandler_reg_callbk(pmix_status_t status, size_t errhandler_ref, void *cbdata)
 {
     mylock_t *lock = (mylock_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(status, errhandler_ref, cbdata);
 
     lock->status = status;
     DEBUG_WAKEUP_THREAD(lock);
@@ -761,11 +786,13 @@ static void errhandler_reg_callbk(pmix_status_t status, size_t errhandler_ref, v
 static pmix_status_t connected(const pmix_proc_t *proc, void *server_object,
                                pmix_op_cbfunc_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(proc, server_object, cbfunc, cbdata);
     return PMIX_OPERATION_SUCCEEDED;
 }
 static pmix_status_t finalized(const pmix_proc_t *proc, void *server_object,
                                pmix_op_cbfunc_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(proc, server_object, cbfunc, cbdata);
     return PMIX_OPERATION_SUCCEEDED;
 }
 
@@ -774,6 +801,7 @@ static pmix_status_t abort_fn(const pmix_proc_t *proc, void *server_object, int 
                               pmix_op_cbfunc_t cbfunc, void *cbdata)
 {
     wait_tracker_t *t2;
+    PMIX_HIDE_UNUSED_PARAMS(server_object, status, msg, nprocs, cbfunc, cbdata);
 
     if (NULL != procs) {
         pmix_output(0, "SERVER: ABORT on %s:%d", procs[0].nspace, procs[0].rank);
@@ -794,6 +822,7 @@ static pmix_status_t abort_fn(const pmix_proc_t *proc, void *server_object, int 
 static void fencbfn(int sd, short args, void *cbdata)
 {
     pmix_shift_caddy_t *scd = (pmix_shift_caddy_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
     /* pass the provided data back to each participating proc */
     if (NULL != scd->cbfunc.modexcbfunc) {
@@ -806,9 +835,15 @@ static pmix_status_t fencenb_fn(const pmix_proc_t procs[], size_t nprocs, const 
                                 void *cbdata)
 {
     pmix_shift_caddy_t *scd;
+    PMIX_HIDE_UNUSED_PARAMS(procs, nprocs);
 
     scd = PMIX_NEW(pmix_shift_caddy_t);
     scd->status = PMIX_SUCCESS;
+    if (NULL != info) {
+        if (PMIX_CHECK_KEY(&info[ninfo-1], PMIX_LOCAL_COLLECTIVE_STATUS)) {
+            scd->status = info[ninfo-1].value.data.status;
+        }
+    }
     scd->data = data;
     scd->ndata = ndata;
     scd->cbfunc.modexcbfunc = cbfunc;
@@ -832,6 +867,7 @@ static void dmdxfn(int sd, short args, void *cbdata)
     pmix_shift_caddy_t *scd = (pmix_shift_caddy_t *) cbdata;
     pmix_proc_t proc;
     pmix_status_t rc;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
     /* get the data */
     PMIX_LOAD_PROCID(&proc, scd->pname.nspace, scd->pname.rank);
@@ -849,6 +885,7 @@ static pmix_status_t dmodex_fn(const pmix_proc_t *proc, const pmix_info_t info[]
                                pmix_modex_cbfunc_t cbfunc, void *cbdata)
 {
     pmix_shift_caddy_t *scd;
+    PMIX_HIDE_UNUSED_PARAMS(info, ninfo);
 
     /* if this is a timeout test, then do nothing */
     if (istimeouttest) {
@@ -870,13 +907,14 @@ static pmix_status_t publish_fn(const pmix_proc_t *proc, const pmix_info_t info[
 {
     pmix_locdat_t *p;
     size_t n;
+    PMIX_HIDE_UNUSED_PARAMS(cbfunc, cbdata);
 
     for (n = 0; n < ninfo; n++) {
         p = PMIX_NEW(pmix_locdat_t);
-        (void) strncpy(p->pdata.proc.nspace, proc->nspace, PMIX_MAX_NSLEN);
+        pmix_strncpy(p->pdata.proc.nspace, proc->nspace, PMIX_MAX_NSLEN);
         p->pdata.proc.rank = proc->rank;
-        (void) strncpy(p->pdata.key, info[n].key, PMIX_MAX_KEYLEN);
-        pmix_value_xfer(&p->pdata.value, (pmix_value_t *) &info[n].value);
+        pmix_strncpy(p->pdata.key, info[n].key, PMIX_MAX_KEYLEN);
+        PMIx_Value_xfer(&p->pdata.value, (pmix_value_t *) &info[n].value);
         pmix_list_append(&pubdata, &p->super);
     }
 
@@ -894,6 +932,7 @@ typedef struct {
 static void lkcbfn(int sd, short args, void *cbdata)
 {
     lkobj_t *lk = (lkobj_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
     lk->cbfunc(PMIX_SUCCESS, lk->pd, lk->n, lk->cbdata);
     PMIX_PDATA_FREE(lk->pd, lk->n);
@@ -909,6 +948,7 @@ static pmix_status_t lookup_fn(const pmix_proc_t *proc, char **keys, const pmix_
     pmix_pdata_t *pd = NULL;
     pmix_status_t ret = PMIX_ERR_NOT_FOUND;
     lkobj_t *lk;
+    PMIX_HIDE_UNUSED_PARAMS(proc, info, ninfo);
 
     PMIX_CONSTRUCT(&results, pmix_list_t);
 
@@ -916,10 +956,10 @@ static pmix_status_t lookup_fn(const pmix_proc_t *proc, char **keys, const pmix_
         PMIX_LIST_FOREACH (p, &pubdata, pmix_locdat_t) {
             if (0 == strncmp(keys[n], p->pdata.key, PMIX_MAX_KEYLEN)) {
                 p2 = PMIX_NEW(pmix_locdat_t);
-                (void) strncpy(p2->pdata.proc.nspace, p->pdata.proc.nspace, PMIX_MAX_NSLEN);
+                pmix_strncpy(p2->pdata.proc.nspace, p->pdata.proc.nspace, PMIX_MAX_NSLEN);
                 p2->pdata.proc.rank = p->pdata.proc.rank;
-                (void) strncpy(p2->pdata.key, p->pdata.key, PMIX_MAX_KEYLEN);
-                pmix_value_xfer(&p2->pdata.value, &p->pdata.value);
+                pmix_strncpy(p2->pdata.key, p->pdata.key, PMIX_MAX_KEYLEN);
+                PMIx_Value_xfer(&p2->pdata.value, &p->pdata.value);
                 pmix_list_append(&results, &p2->super);
                 break;
             }
@@ -931,10 +971,10 @@ static pmix_status_t lookup_fn(const pmix_proc_t *proc, char **keys, const pmix_
         for (i = 0; i < n; i++) {
             p = (pmix_locdat_t *) pmix_list_remove_first(&results);
             if (p) {
-                (void) strncpy(pd[i].proc.nspace, p->pdata.proc.nspace, PMIX_MAX_NSLEN);
+                pmix_strncpy(pd[i].proc.nspace, p->pdata.proc.nspace, PMIX_MAX_NSLEN);
                 pd[i].proc.rank = p->pdata.proc.rank;
-                (void) strncpy(pd[i].key, p->pdata.key, PMIX_MAX_KEYLEN);
-                pmix_value_xfer(&pd[i].value, &p->pdata.value);
+                pmix_strncpy(pd[i].key, p->pdata.key, PMIX_MAX_KEYLEN);
+                PMIx_Value_xfer(&pd[i].value, &p->pdata.value);
             }
         }
     }
@@ -956,6 +996,7 @@ static pmix_status_t unpublish_fn(const pmix_proc_t *proc, char **keys, const pm
 {
     pmix_locdat_t *p, *p2;
     size_t n;
+    PMIX_HIDE_UNUSED_PARAMS(proc, info, ninfo, cbfunc, cbdata);
 
     for (n = 0; NULL != keys[n]; n++) {
         PMIX_LIST_FOREACH_SAFE (p, p2, &pubdata, pmix_locdat_t) {
@@ -972,6 +1013,7 @@ static pmix_status_t unpublish_fn(const pmix_proc_t *proc, char **keys, const pm
 static void spcbfunc(pmix_status_t status, void *cbdata)
 {
     myxfer_t *x = (myxfer_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(status);
 
     if (NULL != x->spcbfunc) {
         x->spcbfunc(PMIX_SUCCESS, "DYNSPACE", x->cbdata);
@@ -986,6 +1028,7 @@ static pmix_status_t spawn_fn(const pmix_proc_t *proc, const pmix_info_t job_inf
     size_t n;
     pmix_proc_t *pptr;
     bool spawned;
+    PMIX_HIDE_UNUSED_PARAMS(proc, apps, napps);
 
     /* check the job info for parent and spawned keys */
     for (n = 0; n < ninfo; n++) {
@@ -1019,6 +1062,7 @@ static int numconnects = 0;
 static pmix_status_t connect_fn(const pmix_proc_t procs[], size_t nprocs, const pmix_info_t info[],
                                 size_t ninfo, pmix_op_cbfunc_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(procs, nprocs, info, ninfo, cbfunc, cbdata);
     /* in practice, we would pass this request to the local
      * resource manager for handling */
 
@@ -1031,6 +1075,7 @@ static pmix_status_t disconnect_fn(const pmix_proc_t procs[], size_t nprocs,
                                    const pmix_info_t info[], size_t ninfo, pmix_op_cbfunc_t cbfunc,
                                    void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(procs, nprocs, info, ninfo, cbfunc, cbdata);
     return PMIX_OPERATION_SUCCEEDED;
 }
 
@@ -1038,12 +1083,14 @@ static pmix_status_t register_event_fn(pmix_status_t *codes, size_t ncodes,
                                        const pmix_info_t info[], size_t ninfo,
                                        pmix_op_cbfunc_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(codes, ncodes, info, ninfo, cbfunc, cbdata);
     return PMIX_OPERATION_SUCCEEDED;
 }
 
 static pmix_status_t deregister_events(pmix_status_t *codes, size_t ncodes, pmix_op_cbfunc_t cbfunc,
                                        void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(codes, ncodes, cbfunc, cbdata);
     return PMIX_OPERATION_SUCCEEDED;
 }
 
@@ -1051,23 +1098,16 @@ static pmix_status_t notify_event(pmix_status_t code, const pmix_proc_t *source,
                                   pmix_data_range_t range, pmix_info_t info[], size_t ninfo,
                                   pmix_op_cbfunc_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(code, source, range, info, ninfo, cbfunc, cbdata);
     return PMIX_OPERATION_SUCCEEDED;
 }
 
-typedef struct query_data_t {
-    pmix_event_t ev;
-    pmix_info_t *data;
-    size_t ndata;
-    pmix_info_cbfunc_t cbfunc;
-    void *cbdata;
-} query_data_t;
-
 static void qfn(int sd, short args, void *cbdata)
 {
-    query_data_t *qd = (query_data_t *) cbdata;
-
-    qd->cbfunc(PMIX_SUCCESS, qd->data, qd->ndata, qd->cbdata, NULL, NULL);
-    PMIX_INFO_FREE(qd->data, qd->ndata);
+    myxfer_t *qd = (myxfer_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
+    qd->infocbfunc(PMIX_SUCCESS, qd->info, qd->ninfo, qd->cbdata, NULL, NULL);
+    PMIX_RELEASE(qd);
 }
 
 static pmix_status_t query_fn(pmix_proc_t *proct, pmix_query_t *queries, size_t nqueries,
@@ -1075,7 +1115,8 @@ static pmix_status_t query_fn(pmix_proc_t *proct, pmix_query_t *queries, size_t 
 {
     size_t n;
     pmix_info_t *info;
-    query_data_t qd;
+    myxfer_t *qd;
+    PMIX_HIDE_UNUSED_PARAMS(proct);
 
     if (NULL == cbfunc) {
         return PMIX_ERROR;
@@ -1084,17 +1125,19 @@ static pmix_status_t query_fn(pmix_proc_t *proct, pmix_query_t *queries, size_t 
     PMIX_INFO_CREATE(info, nqueries);
     for (n = 0; n < nqueries; n++) {
         pmix_output(0, "\tKey: %s", queries[n].keys[0]);
-        (void) strncpy(info[n].key, queries[n].keys[0], PMIX_MAX_KEYLEN);
+        pmix_strncpy(info[n].key, queries[n].keys[0], PMIX_MAX_KEYLEN);
         info[n].value.type = PMIX_STRING;
         if (0 > asprintf(&info[n].value.data.string, "%d", (int) n)) {
             return PMIX_ERROR;
         }
     }
-    qd.data = info;
-    qd.ndata = nqueries;
-    qd.cbfunc = cbfunc;
-    qd.cbdata = cbdata;
-    SIMPTEST_THREADSHIFT(&qd, qfn);
+
+    qd = PMIX_NEW(myxfer_t);
+    qd->info = info;
+    qd->ninfo = nqueries;
+    qd->infocbfunc = cbfunc;
+    qd->cbdata = cbdata;
+    SIMPTEST_THREADSHIFT(qd, qfn);
     return PMIX_SUCCESS;
 }
 
@@ -1102,9 +1145,10 @@ static void tool_connect_fn(pmix_info_t *info, size_t ninfo, pmix_tool_connectio
                             void *cbdata)
 {
     pmix_proc_t proc;
+    PMIX_HIDE_UNUSED_PARAMS(info, ninfo);
 
     /* just pass back an arbitrary nspace */
-    (void) strncpy(proc.nspace, "TOOL", PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, "TOOL", PMIX_MAX_NSLEN);
     proc.rank = 0;
 
     if (NULL != cbfunc) {
@@ -1115,12 +1159,16 @@ static void tool_connect_fn(pmix_info_t *info, size_t ninfo, pmix_tool_connectio
 typedef struct {
     pmix_event_t ev;
     pmix_op_cbfunc_t cbfunc;
+    pmix_info_cbfunc_t infocbfunc;
+    pmix_info_t *info;
+    size_t ninfo;
     void *cbdata;
 } mylog_t;
 
 static void foobar(int sd, short args, void *cbdata)
 {
     mylog_t *lg = (mylog_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
     lg->cbfunc(PMIX_SUCCESS, lg->cbdata);
 }
 static void log_fn(const pmix_proc_t *client, const pmix_info_t data[], size_t ndata,
@@ -1128,7 +1176,14 @@ static void log_fn(const pmix_proc_t *client, const pmix_info_t data[], size_t n
                    void *cbdata)
 {
     mylog_t *lg = (mylog_t *) malloc(sizeof(mylog_t));
+    size_t n;
+    PMIX_HIDE_UNUSED_PARAMS(client, data, ndata, directives, ndirs);
 
+    for (n=0; n < ndata; n++) {
+        if (PMIX_STRING == data[n].value.type) {
+            fprintf(stderr, "%sLOG: %s\n", PMIX_NAME_PRINT(client), data[n].value.data.string);
+        }
+    }
     lg->cbfunc = cbfunc;
     lg->cbdata = cbdata;
     SIMPTEST_THREADSHIFT(lg, foobar);
@@ -1138,6 +1193,7 @@ static pmix_status_t alloc_fn(const pmix_proc_t *client, pmix_alloc_directive_t 
                               const pmix_info_t data[], size_t ndata, pmix_info_cbfunc_t cbfunc,
                               void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(client, directive, data, ndata, cbfunc, cbdata);
     return PMIX_OPERATION_SUCCEEDED;
 }
 
@@ -1145,6 +1201,7 @@ static pmix_status_t jctrl_fn(const pmix_proc_t *requestor, const pmix_proc_t ta
                               size_t ntargets, const pmix_info_t directives[], size_t ndirs,
                               pmix_info_cbfunc_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(requestor, targets, ntargets, directives, ndirs, cbfunc, cbdata);
     return PMIX_OPERATION_SUCCEEDED;
 }
 
@@ -1152,15 +1209,17 @@ static pmix_status_t mon_fn(const pmix_proc_t *requestor, const pmix_info_t *mon
                             pmix_status_t error, const pmix_info_t directives[], size_t ndirs,
                             pmix_info_cbfunc_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(requestor, monitor, error, directives, ndirs, cbfunc, cbdata);
     return PMIX_ERR_NOT_SUPPORTED;
 }
 
-static void wait_signal_callback(int fd, short event, void *arg)
+static void wait_signal_callback(int sd, short args, void *arg)
 {
     pmix_event_t *sig = (pmix_event_t *) arg;
     int status;
     pid_t pid;
     wait_tracker_t *t2;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
     if (SIGCHLD != pmix_event_get_signal(sig)) {
         return;
@@ -1206,4 +1265,47 @@ static void wait_signal_callback(int fd, short event, void *arg)
         }
     }
     fprintf(stderr, "ENDLOOP\n");
+}
+
+static void relcbfunc(void *cbdata)
+{
+    mylog_t *lg = (mylog_t *) cbdata;
+    free(lg);
+}
+
+static void grpbar(int sd, short args, void *cbdata)
+{
+    mylog_t *lg = (mylog_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
+    lg->infocbfunc(PMIX_SUCCESS, (pmix_info_t*)lg->info, lg->ninfo, lg->cbdata, relcbfunc, lg);
+}
+
+static pmix_status_t grp_fn(pmix_group_operation_t op, char *gpid,
+                            const pmix_proc_t procs[], size_t nprocs,
+                            const pmix_info_t directives[], size_t ndirs,
+                            pmix_info_cbfunc_t cbfunc, void *cbdata)
+{
+    mylog_t *lg = (mylog_t *) malloc(sizeof(mylog_t));
+    pmix_info_t *info;
+    size_t n;
+    size_t ctxid = 1;
+    PMIX_HIDE_UNUSED_PARAMS(op, gpid, procs, nprocs);
+
+    memset(lg, 0, sizeof(mylog_t));
+    if (PMIX_GROUP_CONSTRUCT == op) {
+        PMIX_INFO_CREATE(info, 2);
+        PMIX_INFO_LOAD(&info[0], PMIX_GROUP_CONTEXT_ID, &ctxid, PMIX_SIZE);
+        for (n=0; n < ndirs; n++) {
+            if (PMIX_CHECK_KEY(&directives[n], PMIX_GROUP_ENDPT_DATA)) {
+                PMIX_INFO_XFER(&info[1], &directives[n]);
+                break;
+            }
+        }
+        lg->info = info;
+        lg->ninfo = 2;
+    }
+    lg->infocbfunc = cbfunc;
+    lg->cbdata = cbdata;
+    SIMPTEST_THREADSHIFT(lg, grpbar);
+    return PMIX_SUCCESS;
 }

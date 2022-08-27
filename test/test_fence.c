@@ -2,7 +2,7 @@
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015-2017 Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -18,7 +18,7 @@ static void get_cb(pmix_status_t status, pmix_value_t *kv, void *cbdata)
     get_cbdata *cb = (get_cbdata *) cbdata;
     PMIX_ACQUIRE_OBJECT(cb);
     if (PMIX_SUCCESS == status) {
-        pmix_value_xfer(cb->kv, kv);
+        PMIx_Value_xfer(cb->kv, kv);
     }
     cb->status = status;
     PMIX_POST_OBJECT(cb);
@@ -51,6 +51,9 @@ static void add_noise(char *noise_param, char *my_nspace, pmix_rank_t my_rank)
 static void release_cb(pmix_status_t status, void *cbdata)
 {
     int *ptr = (int *) cbdata;
+
+    PMIX_HIDE_UNUSED_PARAMS(status);
+
     *ptr = 0;
 }
 
@@ -258,7 +261,7 @@ static int get_local_peers(char *my_nspace, int my_rank, pmix_rank_t **_peers, p
     int rc;
     pmix_proc_t proc;
 
-    (void) strncpy(proc.nspace, my_nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, my_nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
     /* get number of neighbors on this node */
     if (PMIX_SUCCESS != (rc = PMIx_Get(&proc, PMIX_LOCAL_SIZE, NULL, 0, &val))) {
@@ -272,7 +275,7 @@ static int get_local_peers(char *my_nspace, int my_rank, pmix_rank_t **_peers, p
 
     if (val->type != PMIX_UINT32) {
         TEST_ERROR(("%s:%d: local peer # attribute value type mismatch,"
-                    " want %d get %d(%d)",
+                    " want %d get %d",
                     my_nspace, my_rank, PMIX_UINT32, val->type));
         exit(PMIX_ERROR);
     }
@@ -343,7 +346,7 @@ int test_job_fence(test_params params, char *my_nspace, pmix_rank_t my_rank)
     pmix_proc_t proc;
     pmix_info_t info;
 
-    (void) strncpy(proc.nspace, my_nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, my_nspace, PMIX_MAX_NSLEN);
     proc.rank = my_rank;
 
     for (i = 0; i < 3; i++) {
@@ -449,8 +452,8 @@ int test_job_fence(test_params params, char *my_nspace, pmix_rank_t my_rank)
         if (PMIX_ERR_NOT_SUPPORTED == rc) {
             goto cleanout;
         }
-        if (PMIX_ERR_NOT_FOUND != rc && PMIX_ERR_PROC_ENTRY_NOT_FOUND != rc) {
-            TEST_ERROR(("%s:%d [ERROR]: PMIx_Get returned %s instead of not_found", my_nspace,
+        if (PMIX_ERR_NOT_FOUND != rc && PMIX_ERR_TIMEOUT != rc) {
+            TEST_ERROR(("%s:%d [ERROR]: PMIx_Get returned %s instead of not_found or timeout", my_nspace,
                         my_rank, PMIx_Error_string(rc)));
             exit(PMIX_ERROR);
         }

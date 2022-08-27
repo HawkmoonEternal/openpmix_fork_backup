@@ -14,7 +14,7 @@
  * Copyright (c) 2014-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015-2020 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -26,7 +26,7 @@
  */
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #ifdef HAVE_STRING_H
 #    include <string.h>
@@ -40,15 +40,15 @@
 
 #include "src/class/pmix_list.h"
 #include "src/client/pmix_client_ops.h"
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/base/pmix_mca_base_framework.h"
 #include "src/mca/base/pmix_mca_base_var.h"
 #include "src/mca/mca.h"
 #include "src/server/pmix_server_ops.h"
-#include "src/util/error.h"
-#include "src/util/os_dirpath.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_os_dirpath.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_show_help.h"
 
 #include "src/mca/ptl/base/base.h"
 #include "src/mca/ptl/ptl_types.h"
@@ -61,14 +61,65 @@
 
 #include "src/mca/ptl/base/static-components.h"
 
-#define PMIX_MAX_MSG_SIZE 16
-
 /* Instantiate the global vars */
-pmix_ptl_base_t pmix_ptl_base = {0};
+pmix_ptl_base_t pmix_ptl_base = {
+    .initialized = false,
+    .selected = false,
+    .posted_recvs = PMIX_LIST_STATIC_INIT,
+    .unexpected_msgs = PMIX_LIST_STATIC_INIT,
+    .stop_thread = {0, 0},
+    .listen_thread_active = false,
+    .listener = PMIX_LISTENER_STATIC_INIT,
+    .connection = NULL,
+    .current_tag = 0,
+    .max_msg_size = 0,
+    .session_tmpdir = NULL,
+    .system_tmpdir = NULL,
+    .report_uri = NULL,
+    .uri = NULL,
+    .urifile = NULL,
+    .system_filename = NULL,
+    .session_filename = NULL,
+    .nspace_filename = NULL,
+    .pid_filename = NULL,
+    .rendezvous_filename = NULL,
+    .created_rendezvous_file = false,
+    .created_session_tmpdir = false,
+    .created_system_tmpdir = false,
+    .created_system_filename = false,
+    .created_session_filename = false,
+    .created_nspace_filename = false,
+    .created_pid_filename = false,
+    .created_urifile = false,
+    .remote_connections = false,
+    .system_tool = false,
+    .session_tool = false,
+    .tool_support = false,
+    .if_include = NULL,
+    .if_exclude = NULL,
+    .ipv4_port = 0,
+    .disable_ipv4_family = false,
+    .ipv6_port = 0,
+    .disable_ipv6_family = true,
+    .max_retries = 0,
+    .wait_to_connect = 0,
+    .handshake_wait_time = 0,
+    .handshake_max_retries = 0
+};
 int pmix_ptl_base_output = -1;
-pmix_ptl_module_t pmix_ptl = {0};
+pmix_ptl_module_t pmix_ptl = {
+    .name = NULL,
+    .init = NULL,
+    .finalize = NULL,
+    .recv = NULL,
+    .cancel = NULL,
+    .connect_to_peer = NULL,
+    .query_servers = NULL,
+    .setup_listener = NULL,
+    .setup_fork = NULL
+};
 
-static size_t max_msg_size = PMIX_MAX_MSG_SIZE;
+static size_t max_msg_size = 0;
 
 static int pmix_ptl_register(pmix_mca_base_register_flag_t flags)
 {
@@ -77,16 +128,16 @@ static int pmix_ptl_register(pmix_mca_base_register_flag_t flags)
     (void) flags;
     pmix_mca_base_var_register("pmix", "ptl", "base", "max_msg_size",
                                "Max size (in Mbytes) of a client/server msg",
-                               PMIX_MCA_BASE_VAR_TYPE_SIZE_T, NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE,
-                               PMIX_INFO_LVL_2, PMIX_MCA_BASE_VAR_SCOPE_READONLY, &max_msg_size);
+                               PMIX_MCA_BASE_VAR_TYPE_SIZE_T,
+                               &max_msg_size);
     pmix_ptl_base.max_msg_size = max_msg_size * 1024 * 1024;
 
     idx = pmix_mca_base_var_register(
         "pmix", "ptl", "base", "if_include",
         "Comma-delimited list of devices and/or CIDR notation of TCP networks "
         "(e.g., \"eth0,192.168.0.0/16\").  Mutually exclusive with ptl_tcp_if_exclude.",
-        PMIX_MCA_BASE_VAR_TYPE_STRING, NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_2,
-        PMIX_MCA_BASE_VAR_SCOPE_LOCAL, &pmix_ptl_base.if_include);
+        PMIX_MCA_BASE_VAR_TYPE_STRING,
+        &pmix_ptl_base.if_include);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "if_include",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
 
@@ -96,8 +147,8 @@ static int pmix_ptl_register(pmix_mca_base_register_flag_t flags)
         "-- all devices not matching these specifications will be used (e.g., "
         "\"eth0,192.168.0.0/16\"). "
         "If set to a non-default value, it is mutually exclusive with ptl_tcp_if_include.",
-        PMIX_MCA_BASE_VAR_TYPE_STRING, NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_2,
-        PMIX_MCA_BASE_VAR_SCOPE_LOCAL, &pmix_ptl_base.if_exclude);
+        PMIX_MCA_BASE_VAR_TYPE_STRING,
+        &pmix_ptl_base.if_exclude);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "if_exclude",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
 
@@ -109,23 +160,19 @@ static int pmix_ptl_register(pmix_mca_base_register_flag_t flags)
     }
 
     idx = pmix_mca_base_var_register("pmix", "ptl", "base", "ipv4_port", "IPv4 port to be used",
-                                     PMIX_MCA_BASE_VAR_TYPE_INT, NULL, 0,
-                                     PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_4,
-                                     PMIX_MCA_BASE_VAR_SCOPE_READONLY, &pmix_ptl_base.ipv4_port);
+                                     PMIX_MCA_BASE_VAR_TYPE_INT,
+                                     &pmix_ptl_base.ipv4_port);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "ipv4_port",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
 
     idx = pmix_mca_base_var_register("pmix", "ptl", "base", "ipv6_port", "IPv6 port to be used",
-                                     PMIX_MCA_BASE_VAR_TYPE_INT, NULL, 0,
-                                     PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_4,
-                                     PMIX_MCA_BASE_VAR_SCOPE_READONLY, &pmix_ptl_base.ipv6_port);
+                                     PMIX_MCA_BASE_VAR_TYPE_INT,
+                                     &pmix_ptl_base.ipv6_port);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "ipv6_port",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
 
     idx = pmix_mca_base_var_register("pmix", "ptl", "base", "disable_ipv4_family",
                                      "Disable the IPv4 interfaces", PMIX_MCA_BASE_VAR_TYPE_BOOL,
-                                     NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_4,
-                                     PMIX_MCA_BASE_VAR_SCOPE_READONLY,
                                      &pmix_ptl_base.disable_ipv4_family);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "disable_ipv4_family",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
@@ -133,9 +180,7 @@ static int pmix_ptl_register(pmix_mca_base_register_flag_t flags)
     pmix_ptl_base.disable_ipv6_family = true;
     idx = pmix_mca_base_var_register("pmix", "ptl", "base", "disable_ipv6_family",
                                      "Disable the IPv6 interfaces (default:disabled)",
-                                     PMIX_MCA_BASE_VAR_TYPE_BOOL, NULL, 0,
-                                     PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_4,
-                                     PMIX_MCA_BASE_VAR_SCOPE_READONLY,
+                                     PMIX_MCA_BASE_VAR_TYPE_BOOL,
                                      &pmix_ptl_base.disable_ipv6_family);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "disable_ipv6_family",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
@@ -143,40 +188,39 @@ static int pmix_ptl_register(pmix_mca_base_register_flag_t flags)
     idx = pmix_mca_base_var_register(
         "pmix", "ptl", "base", "connection_wait_time",
         "Number of seconds to wait for the server connection file to appear",
-        PMIX_MCA_BASE_VAR_TYPE_INT, NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_4,
-        PMIX_MCA_BASE_VAR_SCOPE_READONLY, &pmix_ptl_base.wait_to_connect);
+        PMIX_MCA_BASE_VAR_TYPE_INT,
+        &pmix_ptl_base.wait_to_connect);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "connection_wait_time",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
 
     idx = pmix_mca_base_var_register(
         "pmix", "ptl", "base", "max_retries",
         "Number of times to look for the connection file before quitting",
-        PMIX_MCA_BASE_VAR_TYPE_INT, NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_4,
-        PMIX_MCA_BASE_VAR_SCOPE_READONLY, &pmix_ptl_base.max_retries);
+        PMIX_MCA_BASE_VAR_TYPE_INT,
+        &pmix_ptl_base.max_retries);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "max_retries",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
 
     idx = pmix_mca_base_var_register(
         "pmix", "ptl", "base", "handshake_wait_time",
         "Number of seconds to wait for the server reply to the handshake request",
-        PMIX_MCA_BASE_VAR_TYPE_INT, NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_4,
-        PMIX_MCA_BASE_VAR_SCOPE_READONLY, &pmix_ptl_base.handshake_wait_time);
+        PMIX_MCA_BASE_VAR_TYPE_INT,
+        &pmix_ptl_base.handshake_wait_time);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "handshake_wait_time",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
 
     idx = pmix_mca_base_var_register(
         "pmix", "ptl", "base", "handshake_max_retries",
         "Number of times to retry the handshake request before giving up",
-        PMIX_MCA_BASE_VAR_TYPE_INT, NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_4,
-        PMIX_MCA_BASE_VAR_SCOPE_READONLY, &pmix_ptl_base.handshake_max_retries);
+        PMIX_MCA_BASE_VAR_TYPE_INT,
+        &pmix_ptl_base.handshake_max_retries);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "handshake_max_retries",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
 
     idx = pmix_mca_base_var_register("pmix", "ptl", "base", "report_uri",
                                      "Output URI [- => stdout, + => stderr, or filename]",
-                                     PMIX_MCA_BASE_VAR_TYPE_STRING, NULL, 0,
-                                     PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_2,
-                                     PMIX_MCA_BASE_VAR_SCOPE_LOCAL, &pmix_ptl_base.report_uri);
+                                     PMIX_MCA_BASE_VAR_TYPE_STRING,
+                                     &pmix_ptl_base.report_uri);
     (void) pmix_mca_base_var_register_synonym(idx, "pmix", "ptl", "tcp", "report_uri",
                                               PMIX_MCA_BASE_VAR_SYN_FLAG_DEPRECATED);
 
@@ -185,6 +229,8 @@ static int pmix_ptl_register(pmix_mca_base_register_flag_t flags)
 
 static pmix_status_t pmix_ptl_close(void)
 {
+    int rc;
+
     if (!pmix_ptl_base.initialized) {
         return PMIX_SUCCESS;
     }
@@ -200,7 +246,9 @@ static pmix_status_t pmix_ptl_close(void)
             pmix_client_globals.myserver->sd = -1;
         }
     }
-
+    if (NULL != pmix_ptl_base.connection) {
+        free(pmix_ptl_base.connection);
+    }
     /* the component will cleanup when closed */
     PMIX_LIST_DESTRUCT(&pmix_ptl_base.posted_recvs);
     PMIX_LIST_DESTRUCT(&pmix_ptl_base.unexpected_msgs);
@@ -208,31 +256,56 @@ static pmix_status_t pmix_ptl_close(void)
 
     if (NULL != pmix_ptl_base.system_filename) {
         if (pmix_ptl_base.created_system_filename) {
-            remove(pmix_ptl_base.system_filename);
+            rc = remove(pmix_ptl_base.system_filename);
+            if (0 != rc) {
+                pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
+                                    "Remove of %s failed: %s",
+                                    pmix_ptl_base.system_filename, strerror(errno));
+            }
         }
         free(pmix_ptl_base.system_filename);
     }
     if (NULL != pmix_ptl_base.session_filename) {
         if (pmix_ptl_base.created_session_filename) {
-            remove(pmix_ptl_base.session_filename);
+            rc = remove(pmix_ptl_base.session_filename);
+            if (0 != rc) {
+                pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
+                                    "Remove of %s failed: %s",
+                                    pmix_ptl_base.system_filename, strerror(errno));
+            }
         }
         free(pmix_ptl_base.session_filename);
     }
     if (NULL != pmix_ptl_base.nspace_filename) {
         if (pmix_ptl_base.created_nspace_filename) {
-            remove(pmix_ptl_base.nspace_filename);
+            rc = remove(pmix_ptl_base.nspace_filename);
+            if (0 != rc) {
+                pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
+                                    "Remove of %s failed: %s",
+                                    pmix_ptl_base.system_filename, strerror(errno));
+            }
         }
         free(pmix_ptl_base.nspace_filename);
     }
     if (NULL != pmix_ptl_base.pid_filename) {
         if (pmix_ptl_base.created_pid_filename) {
-            remove(pmix_ptl_base.pid_filename);
+            rc = remove(pmix_ptl_base.pid_filename);
+            if (0 != rc) {
+                pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
+                                    "Remove of %s failed: %s",
+                                    pmix_ptl_base.system_filename, strerror(errno));
+            }
         }
         free(pmix_ptl_base.pid_filename);
     }
     if (NULL != pmix_ptl_base.rendezvous_filename) {
         if (pmix_ptl_base.created_rendezvous_file) {
-            remove(pmix_ptl_base.rendezvous_filename);
+            rc = remove(pmix_ptl_base.rendezvous_filename);
+            if (0 != rc) {
+                pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
+                                    "Remove of %s failed: %s",
+                                    pmix_ptl_base.system_filename, strerror(errno));
+            }
         }
         free(pmix_ptl_base.rendezvous_filename);
     }
@@ -242,7 +315,12 @@ static pmix_status_t pmix_ptl_close(void)
     if (NULL != pmix_ptl_base.urifile) {
         if (pmix_ptl_base.created_urifile) {
             /* remove the file */
-            remove(pmix_ptl_base.urifile);
+            rc = remove(pmix_ptl_base.urifile);
+            if (0 != rc) {
+                pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
+                                    "Remove of %s failed: %s",
+                                    pmix_ptl_base.system_filename, strerror(errno));
+            }
         }
         free(pmix_ptl_base.urifile);
         pmix_ptl_base.urifile = NULL;
@@ -276,6 +354,11 @@ static pmix_status_t pmix_ptl_open(pmix_mca_base_open_flag_t flags)
     pmix_ptl_base.listen_thread_active = false;
     PMIX_CONSTRUCT(&pmix_ptl_base.listener, pmix_listener_t);
     pmix_ptl_base.current_tag = PMIX_PTL_TAG_DYNAMIC;
+    pmix_ptl_base.connection = (struct sockaddr_storage *)malloc(sizeof(struct sockaddr_storage));
+    if (NULL == pmix_ptl_base.connection) {
+        return PMIX_ERR_NOMEM;
+    }
+    memset(pmix_ptl_base.connection, 0, sizeof(struct sockaddr_storage));
 
     /* check for environ-based directives
      * on system tmpdir to use */
@@ -317,7 +400,7 @@ static pmix_status_t pmix_ptl_open(pmix_mca_base_open_flag_t flags)
 }
 
 PMIX_MCA_BASE_FRAMEWORK_DECLARE(pmix, ptl, "PMIx Transfer Layer", pmix_ptl_register, pmix_ptl_open,
-                                pmix_ptl_close, mca_ptl_base_static_components,
+                                pmix_ptl_close, pmix_mca_ptl_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 /***   INSTANTIATE INTERNAL CLASSES   ***/

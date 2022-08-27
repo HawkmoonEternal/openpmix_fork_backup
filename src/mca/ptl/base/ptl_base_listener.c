@@ -8,7 +8,7 @@
  * Copyright (c) 2016      Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -45,20 +45,21 @@
 #endif
 #include <ctype.h>
 #include <sys/stat.h>
-#include PMIX_EVENT_HEADER
+#include <event.h>
 #include <pthread.h>
 
 #include "src/class/pmix_list.h"
-#include "src/util/basename.h"
-#include "src/util/error.h"
-#include "src/util/fd.h"
-#include "src/util/net.h"
-#include "src/util/os_dirpath.h"
-#include "src/util/output.h"
-#include "src/util/pif.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_basename.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_fd.h"
+#include "src/util/pmix_net.h"
+#include "src/util/pmix_os_dirpath.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_if.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/printf.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_printf.h"
+#include "src/util/pmix_show_help.h"
 
 #include "src/mca/ptl/base/base.h"
 
@@ -295,11 +296,11 @@ pmix_status_t pmix_base_write_rndz_file(char *filename, char *uri, bool *created
  * If we are a server and are given a rendezvous file, then that is
  * is the name of the file we are to use to store our listener info.
  */
-pmix_status_t pmix_ptl_base_setup_listener(void)
+pmix_status_t pmix_ptl_base_setup_listener(pmix_info_t info[], size_t ninfo)
 {
     int flags = 0;
     pmix_listener_t *lt;
-    int i, rc = 0, saveindex = -1;
+    int i, rc = 0, saveindex = -1, savelpbk = -1;
     char **interfaces = NULL;
     bool including = false;
     char name[32];
@@ -313,8 +314,54 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
     pid_t mypid;
     int outpipe;
     char *leftover;
+    size_t n;
 
     pmix_output_verbose(2, pmix_ptl_base_framework.framework_output, "ptl:tool setup_listener");
+
+    for (n = 0; n < ninfo; n++) {
+        if (0 == strcmp(info[n].key, PMIX_SERVER_SESSION_SUPPORT)) {
+            pmix_ptl_base.session_tool = PMIX_INFO_TRUE(&info[n]);
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_SERVER_SYSTEM_SUPPORT)) {
+            pmix_ptl_base.system_tool = PMIX_INFO_TRUE(&info[n]);
+        } else if (0 == strcmp(info[n].key, PMIX_SERVER_TOOL_SUPPORT)) {
+            pmix_ptl_base.tool_support = PMIX_INFO_TRUE(&info[n]);
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_SERVER_REMOTE_CONNECTIONS)) {
+            pmix_ptl_base.remote_connections = PMIX_INFO_TRUE(&info[n]);
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_TCP_IF_INCLUDE)) {
+            pmix_ptl_base.if_include = strdup(info[n].value.data.string);
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_TCP_IF_EXCLUDE)) {
+            pmix_ptl_base.if_exclude = strdup(info[n].value.data.string);
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_TCP_IPV4_PORT)) {
+            pmix_ptl_base.ipv4_port = info[n].value.data.integer;
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_TCP_IPV6_PORT)) {
+            pmix_ptl_base.ipv6_port = info[n].value.data.integer;
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_TCP_DISABLE_IPV4)) {
+            pmix_ptl_base.disable_ipv4_family = PMIX_INFO_TRUE(&info[n]);
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_TCP_DISABLE_IPV6)) {
+            pmix_ptl_base.disable_ipv6_family = PMIX_INFO_TRUE(&info[n]);
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_TCP_REPORT_URI)) {
+            if (NULL != pmix_ptl_base.report_uri) {
+                free(pmix_ptl_base.report_uri);
+            }
+            pmix_ptl_base.report_uri = strdup(info[n].value.data.string);
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_SERVER_TMPDIR)) {
+            if (NULL != pmix_ptl_base.session_tmpdir) {
+                free(pmix_ptl_base.session_tmpdir);
+            }
+            pmix_ptl_base.session_tmpdir = strdup(info[n].value.data.string);
+        } else if (PMIX_CHECK_KEY(&info[n], PMIX_SYSTEM_TMPDIR)) {
+            if (NULL != pmix_ptl_base.system_tmpdir) {
+                free(pmix_ptl_base.system_tmpdir);
+            }
+            pmix_ptl_base.system_tmpdir = strdup(info[n].value.data.string);
+        }
+    }
+
+    if (NULL != pmix_ptl_base.if_include && NULL != pmix_ptl_base.if_exclude) {
+        pmix_show_help("help-ptl-base.txt", "include-exclude", true, pmix_ptl_base.if_include,
+                       pmix_ptl_base.if_exclude);
+        return PMIX_ERR_SILENT;
+    }
 
     lt = &pmix_ptl_base.listener;
 
@@ -324,10 +371,10 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
      * subnet+mask
      */
     if (NULL != pmix_ptl_base.if_include) {
-        interfaces = pmix_ptl_base_split_and_resolve(&pmix_ptl_base.if_include, "include");
+        interfaces = pmix_ptl_base_split_and_resolve(pmix_ptl_base.if_include, "include");
         including = true;
     } else if (NULL != pmix_ptl_base.if_exclude) {
-        interfaces = pmix_ptl_base_split_and_resolve(&pmix_ptl_base.if_exclude, "exclude");
+        interfaces = pmix_ptl_base_split_and_resolve(pmix_ptl_base.if_exclude, "exclude");
         including = false;
     }
 
@@ -407,13 +454,11 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
         /* if this is the loopback device and they didn't enable
          * remote connections, then we are done */
         if (pmix_ifisloopback(i)) {
-            if (pmix_ptl_base.remote_connections) {
-                /* ignore loopback */
-                continue;
-            } else {
-                pmix_output_verbose(5, pmix_ptl_base_framework.framework_output,
-                                    "ptl:tool:init loopback interface %s selected", name);
-                saveindex = i;
+            pmix_output_verbose(5, pmix_ptl_base_framework.framework_output,
+                                "ptl:tool:init loopback interface %s found", name);
+            savelpbk = i;
+            if (!pmix_ptl_base.remote_connections) {
+                saveindex = savelpbk;
                 break;
             }
         } else {
@@ -429,14 +474,21 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
         pmix_argv_free(interfaces);
     }
 
-    /* if we didn't find anything, then we cannot operate */
+    /* if we didn't find anything, that could be a problem */
     if (saveindex < 0) {
-        return PMIX_ERR_NOT_AVAILABLE;
+        /* if ONLY a loopback is available, then even if they
+         * enabled remote connections, it's the best we can do */
+        if (savelpbk < 0) {
+            /* if NOTHING is available, then neither are we */
+            return PMIX_ERR_NOT_AVAILABLE;
+        } else {
+            saveindex = savelpbk;
+        }
     }
 
     /* save the connection */
     if (PMIX_SUCCESS
-        != pmix_ifindextoaddr(saveindex, (struct sockaddr *) &pmix_ptl_base.connection,
+        != pmix_ifindextoaddr(saveindex, (struct sockaddr *) pmix_ptl_base.connection,
                               sizeof(struct sockaddr))) {
         pmix_output(0, "ptl:base: problems getting address for kernel index %i\n",
                     pmix_ifindextokindex(saveindex));
@@ -444,15 +496,15 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
     }
 
     /* set the port */
-    if (AF_INET == pmix_ptl_base.connection.ss_family) {
-        ((struct sockaddr_in *) &pmix_ptl_base.connection)->sin_port = htons(
+    if (AF_INET == pmix_ptl_base.connection->ss_family) {
+        ((struct sockaddr_in *) pmix_ptl_base.connection)->sin_port = htons(
             pmix_ptl_base.ipv4_port);
         addrlen = sizeof(struct sockaddr_in);
         if (0 != pmix_ptl_base.ipv4_port) {
             flags = 1;
         }
-    } else if (AF_INET6 == pmix_ptl_base.connection.ss_family) {
-        ((struct sockaddr_in6 *) &pmix_ptl_base.connection)->sin6_port = htons(
+    } else if (AF_INET6 == pmix_ptl_base.connection->ss_family) {
+        ((struct sockaddr_in6 *) pmix_ptl_base.connection)->sin6_port = htons(
             pmix_ptl_base.ipv6_port);
         addrlen = sizeof(struct sockaddr_in6);
         if (0 != pmix_ptl_base.ipv6_port) {
@@ -471,7 +523,7 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
     lt->cbfunc = pmix_ptl_base_connection_handler;
 
     /* create a listen socket for incoming connection attempts */
-    lt->socket = socket(pmix_ptl_base.connection.ss_family, SOCK_STREAM, 0);
+    lt->socket = socket(pmix_ptl_base.connection->ss_family, SOCK_STREAM, 0);
     if (lt->socket < 0) {
         printf("%s:%d socket() failed\n", __FILE__, __LINE__);
         goto sockerror;
@@ -493,14 +545,14 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
         goto sockerror;
     }
 
-    if (bind(lt->socket, (struct sockaddr *) &pmix_ptl_base.connection, addrlen) < 0) {
+    if (bind(lt->socket, (struct sockaddr *) pmix_ptl_base.connection, addrlen) < 0) {
         printf("[%u] %s:%d bind() failed for socket %d storage size %u: %s\n", (unsigned) getpid(),
                __FILE__, __LINE__, lt->socket, (unsigned) addrlen, strerror(errno));
         goto sockerror;
     }
 
     /* resolve assigned port */
-    if (getsockname(lt->socket, (struct sockaddr *) &pmix_ptl_base.connection, &addrlen) < 0) {
+    if (getsockname(lt->socket, (struct sockaddr *) pmix_ptl_base.connection, &addrlen) < 0) {
         pmix_output(0, "ptl:tool:create_listen: getsockname(): %s (%d)",
                     strerror(pmix_socket_errno), pmix_socket_errno);
         goto sockerror;
@@ -523,15 +575,15 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
         goto sockerror;
     }
 
-    if (AF_INET == pmix_ptl_base.connection.ss_family) {
+    if (AF_INET == pmix_ptl_base.connection->ss_family) {
         prefix = "tcp4://";
-        myport = ntohs(((struct sockaddr_in *) &pmix_ptl_base.connection)->sin_port);
-        inet_ntop(AF_INET, &((struct sockaddr_in *) &pmix_ptl_base.connection)->sin_addr,
+        myport = ntohs(((struct sockaddr_in *) pmix_ptl_base.connection)->sin_port);
+        inet_ntop(AF_INET, &((struct sockaddr_in *) pmix_ptl_base.connection)->sin_addr,
                   myconnhost, PMIX_MAXHOSTNAMELEN - 1);
-    } else if (AF_INET6 == pmix_ptl_base.connection.ss_family) {
+    } else if (AF_INET6 == pmix_ptl_base.connection->ss_family) {
         prefix = "tcp6://";
-        myport = ntohs(((struct sockaddr_in6 *) &pmix_ptl_base.connection)->sin6_port);
-        inet_ntop(AF_INET6, &((struct sockaddr_in6 *) &pmix_ptl_base.connection)->sin6_addr,
+        myport = ntohs(((struct sockaddr_in6 *) pmix_ptl_base.connection)->sin6_port);
+        inet_ntop(AF_INET6, &((struct sockaddr_in6 *) pmix_ptl_base.connection)->sin6_addr,
                   myconnhost, PMIX_MAXHOSTNAMELEN - 1);
     } else {
         goto sockerror;
@@ -545,6 +597,15 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
     pmix_output_verbose(2, pmix_ptl_base_framework.framework_output, "ptl:base URI %s", lt->uri);
 
     /* save the URI internally so we can report it */
+    urikv = PMIX_NEW(pmix_kval_t);
+    urikv->key = strdup(PMIX_MYSERVER_URI);
+    PMIX_VALUE_CREATE(urikv->value, 1);
+    PMIX_VALUE_LOAD(urikv->value, lt->uri, PMIX_STRING);
+    PMIX_GDS_STORE_KV(rc, pmix_globals.mypeer, &pmix_globals.myid, PMIX_INTERNAL, urikv);
+    PMIX_RELEASE(urikv); // maintain accounting
+
+    /* save a legacy URI internally so we can report it
+     * to older tools */
     urikv = PMIX_NEW(pmix_kval_t);
     urikv->key = strdup(PMIX_SERVER_URI);
     PMIX_VALUE_CREATE(urikv->value, 1);
@@ -597,7 +658,7 @@ pmix_status_t pmix_ptl_base_setup_listener(void)
          * server */
         if (PMIX_PEER_IS_TOOL(pmix_globals.mypeer)) {
             struct stat buf;
-            /* coverity[toctou] */
+            /* coverity[TOCTOU] */
             if (0 == stat(pmix_ptl_base.rendezvous_filename, &buf)) {
                 goto nextstep;
             }

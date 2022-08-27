@@ -9,7 +9,7 @@
  * Copyright (c) 2017-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2019      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -18,7 +18,7 @@
  */
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include <ctype.h>
 #include <stddef.h>
@@ -43,9 +43,9 @@
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/error.h"
-#include "src/util/output.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_show_help.h"
 
 #include "psensor_file.h"
 #include "src/mca/psensor/base/base.h"
@@ -154,8 +154,10 @@ static void add_tracker(int sd, short flags, void *cbdata)
 
     PMIX_ACQUIRE_OBJECT(fd);
 
+    PMIX_HIDE_UNUSED_PARAMS(sd, flags);
+
     /* add the tracker to our list */
-    pmix_list_append(&mca_psensor_file_component.trackers, &ft->super);
+    pmix_list_append(&pmix_mca_psensor_file_component.trackers, &ft->super);
 
     /* setup the timer event */
     pmix_event_evtimer_set(pmix_psensor_base.evbase, &ft->ev, file_sample, ft);
@@ -171,6 +173,8 @@ static pmix_status_t start(pmix_peer_t *requestor, pmix_status_t error, const pm
 {
     file_tracker_t *ft;
     size_t n;
+
+    PMIX_HIDE_UNUSED_PARAMS(error);
 
     PMIX_OUTPUT_VERBOSE((1, pmix_psensor_base_framework.framework_output,
                          "[%s:%d] checking file monitoring for requestor %s:%d",
@@ -226,13 +230,15 @@ static void del_tracker(int sd, short flags, void *cbdata)
 
     PMIX_ACQUIRE_OBJECT(cd);
 
+    PMIX_HIDE_UNUSED_PARAMS(sd, flags);
+
     /* remove the tracker from our list */
-    PMIX_LIST_FOREACH_SAFE (ft, ftnext, &mca_psensor_file_component.trackers, file_tracker_t) {
+    PMIX_LIST_FOREACH_SAFE (ft, ftnext, &pmix_mca_psensor_file_component.trackers, file_tracker_t) {
         if (ft->requestor != cd->requestor) {
             continue;
         }
         if (NULL == cd->id || (NULL != ft->id && 0 == strcmp(ft->id, cd->id))) {
-            pmix_list_remove_item(&mca_psensor_file_component.trackers, &ft->super);
+            pmix_list_remove_item(&pmix_mca_psensor_file_component.trackers, &ft->super);
             PMIX_RELEASE(ft);
         }
     }
@@ -262,6 +268,8 @@ static void opcbfunc(pmix_status_t status, void *cbdata)
 {
     file_tracker_t *ft = (file_tracker_t *) cbdata;
 
+    PMIX_HIDE_UNUSED_PARAMS(status);
+
     PMIX_RELEASE(ft);
 }
 
@@ -274,12 +282,14 @@ static void file_sample(int sd, short args, void *cbdata)
 
     PMIX_ACQUIRE_OBJECT(ft);
 
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
+
     PMIX_OUTPUT_VERBOSE((1, pmix_psensor_base_framework.framework_output,
                          "[%s:%d] sampling file %s", pmix_globals.myid.nspace,
                          pmix_globals.myid.rank, ft->file));
 
     /* stat the file and get its info */
-    /* coverity[toctou] */
+    /* coverity[TOCTOU] */
     if (0 > stat(ft->file, &buf)) {
         /* cannot stat file */
         PMIX_OUTPUT_VERBOSE((1, pmix_psensor_base_framework.framework_output,
@@ -328,7 +338,7 @@ static void file_sample(int sd, short args, void *cbdata)
                            ft->last_size, ctime(&ft->last_access), ctime(&ft->last_mod));
         }
         /* stop monitoring this client */
-        pmix_list_remove_item(&mca_psensor_file_component.trackers, &ft->super);
+        pmix_list_remove_item(&pmix_mca_psensor_file_component.trackers, &ft->super);
         /* generate an event */
         pmix_strncpy(source.nspace, ft->requestor->info->pname.nspace, PMIX_MAX_NSLEN);
         source.rank = ft->requestor->info->pname.rank;

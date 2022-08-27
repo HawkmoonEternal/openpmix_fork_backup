@@ -17,7 +17,7 @@
  * Copyright (c) 2015-2019 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -30,7 +30,7 @@
 #include "include/pmix.h"
 #include "include/pmix_server.h"
 #include "src/include/pmix_globals.h"
-#include "src/include/types.h"
+#include "src/include/pmix_types.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -42,10 +42,11 @@
 #include <unistd.h>
 
 #include "src/class/pmix_list.h"
-#include "src/util/argv.h"
-#include "src/util/output.h"
+#include "src/include/pmix_globals.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/printf.h"
+#include "src/util/pmix_printf.h"
 
 #include "simptest.h"
 
@@ -70,6 +71,7 @@ static void setup_cbfunc(pmix_status_t status, pmix_info_t info[], size_t ninfo,
 {
     mycaddy_t *mq = (mycaddy_t *) provided_cbdata;
     size_t n;
+    PMIX_HIDE_UNUSED_PARAMS(status);
 
     /* transfer it to the caddy for return to the main thread */
     if (0 < ninfo) {
@@ -106,8 +108,12 @@ int main(int argc, char **argv)
     pmix_cpuset_t mycpuset;
     pmix_device_distance_t *distances;
     size_t ndist;
-    pmix_device_type_t type = PMIX_DEVTYPE_OPENFABRICS | PMIX_DEVTYPE_NETWORK | PMIX_DEVTYPE_COPROC
-                              | PMIX_DEVTYPE_GPU;
+    pmix_device_type_t type = PMIX_DEVTYPE_OPENFABRICS |
+                              PMIX_DEVTYPE_NETWORK |
+                              PMIX_DEVTYPE_COPROC |
+                              PMIX_DEVTYPE_GPU;
+    pmix_nspace_t ncache;
+    PMIX_HIDE_UNUSED_PARAMS(argc, argv);
 
     /* smoke test */
     if (PMIX_SUCCESS != 0) {
@@ -197,10 +203,10 @@ int main(int argc, char **argv)
     PMIX_INFO_LOAD(&info[1], PMIX_ALLOC_NETWORK_SEC_KEY, NULL, PMIX_BOOL);
 
     PMIX_INFO_LOAD(&iptr[3], PMIX_SETUP_APP_ENVARS, NULL, PMIX_BOOL);
-
+    PMIX_LOAD_NSPACE(ncache, "SIMPSCHED");
     DEBUG_CONSTRUCT_LOCK(&cd.lock);
-    if (PMIX_SUCCESS
-        != (rc = PMIx_server_setup_application("SIMPSCHED", iptr, 4, setup_cbfunc, &cd))) {
+    rc = PMIx_server_setup_application(ncache, iptr, 4, setup_cbfunc, &cd);
+    if (PMIX_SUCCESS != rc) {
         pmix_output(0, "[%s:%d] PMIx_server_setup_application failed: %s", __FILE__, __LINE__,
                     PMIx_Error_string(rc));
         DEBUG_DESTRUCT_LOCK(&cd.lock);
@@ -211,9 +217,8 @@ int main(int argc, char **argv)
 
     /* setup the local subsystem */
     DEBUG_CONSTRUCT_LOCK(&lock);
-    if (PMIX_SUCCESS
-        != (rc = PMIx_server_setup_local_support("SIMPSCHED", cd.info, cd.ninfo, local_cbfunc,
-                                                 &lock))) {
+    rc = PMIx_server_setup_local_support(ncache, cd.info, cd.ninfo, local_cbfunc, &lock);
+    if (PMIX_SUCCESS != rc) {
         pmix_output(0, "[%s:%d] PMIx_server_setup_local_support failed: %s", __FILE__, __LINE__,
                     PMIx_Error_string(rc));
         DEBUG_DESTRUCT_LOCK(&lock);

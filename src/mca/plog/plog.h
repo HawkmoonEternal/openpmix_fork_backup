@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2015      Research Organization for Information Science
  *                         and Technology (RIST). All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -28,7 +28,7 @@
 #define PMIX_PLOG_H
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
@@ -85,11 +85,7 @@ PMIX_EXPORT extern pmix_plog_API_module_t pmix_plog;
 /*
  * the standard component data structure
  */
-struct pmix_plog_base_component_t {
-    pmix_mca_base_component_t base;
-    pmix_mca_base_component_data_t data;
-};
-typedef struct pmix_plog_base_component_t pmix_plog_base_component_t;
+typedef pmix_mca_base_component_t pmix_plog_base_component_t;
 
 /*
  * Macro for use in components that are of type plog

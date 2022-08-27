@@ -3,7 +3,7 @@
  * Copyright (c) 2018-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2020      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -12,17 +12,17 @@
  */
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #ifdef HAVE_STRING_H
 #    include <string.h>
 #endif
 
 #include "src/class/pmix_list.h"
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/plog/base/base.h"
-#include "src/threads/threads.h"
-#include "src/util/argv.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_argv.h"
 
 /*
  * The following file was created by configure.  It contains extern
@@ -33,7 +33,13 @@
 #include "src/mca/plog/base/static-components.h"
 
 /* Instantiate the global vars */
-pmix_plog_globals_t pmix_plog_globals = {{0}};
+pmix_plog_globals_t pmix_plog_globals = {
+    .lock = PMIX_LOCK_STATIC_INIT,
+    .actives = PMIX_POINTER_ARRAY_STATIC_INIT,
+    .initialized = false,
+    .selected = false,
+    .channels = NULL
+};
 pmix_plog_API_module_t pmix_plog = {.log = pmix_plog_base_log};
 
 static char *order = NULL;
@@ -42,8 +48,8 @@ static int pmix_plog_register(pmix_mca_base_register_flag_t flags)
     (void) flags;
     pmix_mca_base_var_register("pmix", "plog", "base", "order",
                                "Comma-delimited, prioritized list of logging channels",
-                               PMIX_MCA_BASE_VAR_TYPE_STRING, NULL, 0, PMIX_MCA_BASE_VAR_FLAG_NONE,
-                               PMIX_INFO_LVL_2, PMIX_MCA_BASE_VAR_SCOPE_READONLY, &order);
+                               PMIX_MCA_BASE_VAR_TYPE_STRING,
+                               &order);
     if (NULL != order) {
         pmix_plog_globals.channels = pmix_argv_split(order, ',');
     }
@@ -95,7 +101,7 @@ static pmix_status_t pmix_plog_open(pmix_mca_base_open_flag_t flags)
 }
 
 PMIX_MCA_BASE_FRAMEWORK_DECLARE(pmix, plog, "PMIx Logging Operations", pmix_plog_register,
-                                pmix_plog_open, pmix_plog_close, mca_plog_base_static_components,
+                                pmix_plog_open, pmix_plog_close, pmix_mca_plog_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 static void acon(pmix_plog_base_active_module_t *p)

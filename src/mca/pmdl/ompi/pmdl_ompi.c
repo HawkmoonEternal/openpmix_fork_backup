@@ -2,7 +2,7 @@
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
  *
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -39,14 +39,14 @@
 #include "src/mca/base/pmix_mca_base_var.h"
 #include "src/mca/base/pmix_mca_base_vari.h"
 #include "src/mca/preg/preg.h"
-#include "src/util/alfg.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/name_fns.h"
-#include "src/util/os_path.h"
-#include "src/util/output.h"
+#include "src/util/pmix_alfg.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_os_path.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
-#include "src/util/printf.h"
+#include "src/util/pmix_printf.h"
 
 #include "pmdl_ompi.h"
 #include "src/mca/pmdl/base/base.h"
@@ -62,7 +62,8 @@ static pmix_status_t register_nspace(pmix_namespace_t *nptr);
 static pmix_status_t setup_fork(const pmix_proc_t *proc, char ***env, char ***priors);
 static void deregister_nspace(pmix_namespace_t *nptr);
 static void deregister_nspace(pmix_namespace_t *nptr);
-pmix_pmdl_module_t pmix_pmdl_ompi_module = {.name = "ompi",
+pmix_pmdl_module_t pmix_pmdl_ompi_module = {
+    .name = "ompi",
     .init = ompi_init,
     .finalize = ompi_finalize,
     .harvest_envars = harvest_envars,
@@ -70,7 +71,8 @@ pmix_pmdl_module_t pmix_pmdl_ompi_module = {.name = "ompi",
     .setup_nspace_kv = setup_nspace_kv,
     .register_nspace = register_nspace,
     .setup_fork = setup_fork,
-    .deregister_nspace = deregister_nspace};
+    .deregister_nspace = deregister_nspace
+};
 
 /* internal structures */
 typedef struct {
@@ -163,6 +165,9 @@ static pmix_status_t harvest_envars(pmix_namespace_t *nptr, const pmix_info_t in
     /* flag that we worked on this */
     pmix_argv_append_nosize(priors, "ompi");
 
+    pmix_output_verbose(2, pmix_pmdl_base_framework.framework_output,
+                        "pmdl:ompi:harvest envars active");
+
     /* are we to harvest envars? */
     for (n=0; n < ninfo; n++) {
         if (PMIX_CHECK_KEY(&info[n], PMIX_SETUP_APP_ENVARS)) {
@@ -236,15 +241,13 @@ harvest:
     }
 
     /* see if the user has a default MCA param file */
-    if (NULL != info) {
-        for (n = 0; n < ninfo; n++) {
-            if (PMIX_CHECK_KEY(&info[n], PMIX_USERID)) {
-                PMIX_VALUE_GET_NUMBER(rc, &info[n].value, uid, uint32_t);
-                if (PMIX_SUCCESS != rc) {
-                    return rc;
-                }
-                break;
+    for (n = 0; n < ninfo; n++) {
+        if (PMIX_CHECK_KEY(&info[n], PMIX_USERID)) {
+            PMIX_VALUE_GET_NUMBER(rc, &info[n].value, uid, uint32_t);
+            if (PMIX_SUCCESS != rc) {
+                return rc;
             }
+            break;
         }
     }
     if (UINT32_MAX == uid) {
@@ -296,17 +299,17 @@ harvest:
     }
 
     /* harvest our local envars */
-    if (NULL != mca_pmdl_ompi_component.include) {
+    if (NULL != pmix_mca_pmdl_ompi_component.include) {
         pmix_output_verbose(2, pmix_pmdl_base_framework.framework_output,
                             "pmdl: ompi harvesting envars %s excluding %s",
-                            (NULL == mca_pmdl_ompi_component.incparms)
+                            (NULL == pmix_mca_pmdl_ompi_component.incparms)
                             ? "NONE"
-                            : mca_pmdl_ompi_component.incparms,
-                            (NULL == mca_pmdl_ompi_component.excparms)
+                            : pmix_mca_pmdl_ompi_component.incparms,
+                            (NULL == pmix_mca_pmdl_ompi_component.excparms)
                             ? "NONE"
-                            : mca_pmdl_ompi_component.excparms);
-        rc = pmix_util_harvest_envars(mca_pmdl_ompi_component.include,
-                                      mca_pmdl_ompi_component.exclude, ilist);
+                            : pmix_mca_pmdl_ompi_component.excparms);
+        rc = pmix_util_harvest_envars(pmix_mca_pmdl_ompi_component.include,
+                                      pmix_mca_pmdl_ompi_component.exclude, ilist);
         if (PMIX_SUCCESS != rc) {
             return rc;
         }

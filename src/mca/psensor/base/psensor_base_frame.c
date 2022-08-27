@@ -5,7 +5,7 @@
  * Copyright (c) 2017-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2020      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -15,14 +15,14 @@
 
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include <pthread.h>
-#include PMIX_EVENT_HEADER
+#include <event.h>
 
 #include "src/class/pmix_list.h"
-#include "src/include/types.h"
-#include "src/mca/base/base.h"
+#include "src/include/pmix_types.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/mca.h"
 #include "src/runtime/pmix_progress_threads.h"
 
@@ -39,8 +39,16 @@
 /*
  * Global variables
  */
-pmix_psensor_base_module_t pmix_psensor = {pmix_psensor_base_start, pmix_psensor_base_stop};
-pmix_psensor_base_t pmix_psensor_base = {{{0}}};
+pmix_psensor_base_module_t pmix_psensor = {
+    .start = pmix_psensor_base_start,
+    .stop = pmix_psensor_base_stop
+};
+
+pmix_psensor_base_t pmix_psensor_base = {
+    .actives = PMIX_LIST_STATIC_INIT,
+    .evbase = NULL,
+    .selected = false
+};
 
 static bool use_separate_thread = false;
 
@@ -49,9 +57,8 @@ static int pmix_psensor_register(pmix_mca_base_register_flag_t flags)
     (void) flags;
     (void) pmix_mca_base_var_register("pmix", "psensor", "base", "use_separate_thread",
                                       "Use a separate thread for monitoring local procs",
-                                      PMIX_MCA_BASE_VAR_TYPE_BOOL, NULL, 0,
-                                      PMIX_MCA_BASE_VAR_FLAG_NONE, PMIX_INFO_LVL_9,
-                                      PMIX_MCA_BASE_VAR_SCOPE_READONLY, &use_separate_thread);
+                                      PMIX_MCA_BASE_VAR_TYPE_BOOL,
+                                      &use_separate_thread);
     return PMIX_SUCCESS;
 }
 
@@ -79,7 +86,8 @@ static int pmix_psensor_base_open(pmix_mca_base_open_flag_t flags)
 
     if (use_separate_thread) {
         /* create an event base and progress thread for us */
-        if (NULL == (pmix_psensor_base.evbase = pmix_progress_thread_init("PSENSOR"))) {
+        pmix_psensor_base.evbase = pmix_progress_thread_init("PSENSOR");
+        if (NULL == pmix_psensor_base.evbase) {
             return PMIX_ERROR;
         }
 
@@ -93,7 +101,7 @@ static int pmix_psensor_base_open(pmix_mca_base_open_flag_t flags)
 
 PMIX_MCA_BASE_FRAMEWORK_DECLARE(pmix, psensor, "PMIx Monitoring Sensors", pmix_psensor_register,
                                 pmix_psensor_base_open, pmix_psensor_base_close,
-                                mca_psensor_base_static_components,
+                                pmix_mca_psensor_base_static_components,
                                 PMIX_MCA_BASE_FRAMEWORK_FLAG_DEFAULT);
 
 PMIX_CLASS_INSTANCE(pmix_psensor_active_module_t, pmix_list_item_t, NULL, NULL);

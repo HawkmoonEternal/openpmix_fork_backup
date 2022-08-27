@@ -15,7 +15,7 @@
  * Copyright (c) 2011      Oak Ridge National Labs.  All rights reserved.
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015      Mellanox Technologies, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -45,8 +45,10 @@
 #include <unistd.h>
 
 #include "src/class/pmix_object.h"
-#include "src/util/output.h"
-#include "src/util/printf.h"
+#include "src/include/pmix_globals.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_printf.h"
 
 #define MAXCNT 1
 
@@ -58,6 +60,8 @@ static void notification_fn(size_t evhdlr_registration_id, pmix_status_t status,
                             pmix_info_t results[], size_t nresults,
                             pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, status, source, info, ninfo,
+                            results, nresults);
     if (NULL != cbfunc) {
         cbfunc(PMIX_SUCCESS, NULL, 0, NULL, NULL, cbdata);
     }
@@ -67,6 +71,7 @@ static void notification_fn(size_t evhdlr_registration_id, pmix_status_t status,
 static void errhandler_reg_callbk(pmix_status_t status, size_t errhandler_ref, void *cbdata)
 {
     volatile bool *active = (volatile bool *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(status, errhandler_ref);
 
     *active = false;
 }
@@ -83,6 +88,8 @@ static void model_callback(size_t evhdlr_registration_id, pmix_status_t status,
                            pmix_info_t results[], size_t nresults,
                            pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, status, source, info, ninfo,
+                            results, nresults);
     /* we must NOT tell the event handler state machine that we
      * are the last step as that will prevent it from notifying
      * anyone else that might be listening for declarations */
@@ -95,6 +102,7 @@ static void model_callback(size_t evhdlr_registration_id, pmix_status_t status,
 static void model_registration_callback(pmix_status_t status, size_t evhandler_ref, void *cbdata)
 {
     volatile int *active = (volatile int *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(status, evhandler_ref);
 
     *active = false;
 }
@@ -115,6 +123,7 @@ int main(int argc, char **argv)
     char **peers;
     bool all_local, local;
     pmix_rank_t *locals = NULL;
+    PMIX_HIDE_UNUSED_PARAMS(argc, argv);
 
     /* init us and declare we are a test programming model */
     PMIX_INFO_CREATE(iptr, 2);
@@ -128,7 +137,7 @@ int main(int argc, char **argv)
     PMIX_INFO_FREE(iptr, 2);
 
     /* test something */
-    (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
     if (PMIX_SUCCESS != (rc = PMIx_Get(&proc, PMIX_JOB_SIZE, NULL, 0, &val))) {
         pmix_output(0, "Client ns %s rank %d: PMIx_Get failed: %s", myproc.nspace, myproc.rank,
@@ -159,7 +168,7 @@ int main(int argc, char **argv)
     }
 
     /* get our job size */
-    (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+    pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
     proc.rank = PMIX_RANK_WILDCARD;
     if (PMIX_SUCCESS != (rc = PMIx_Get(&proc, PMIX_JOB_SIZE, NULL, 0, &val))) {
         pmix_output(0, "Client ns %s rank %d: PMIx_Get job size failed: %s", myproc.nspace,
@@ -227,7 +236,7 @@ int main(int argc, char **argv)
 
         /* call fence to ensure the data is received */
         PMIX_PROC_CONSTRUCT(&proc);
-        (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+        pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
         proc.rank = PMIX_RANK_WILDCARD;
         if (PMIX_SUCCESS != (rc = PMIx_Fence(&proc, 1, NULL, 0))) {
             pmix_output(0, "Client ns %s rank %d cnt %d: PMIx_Fence failed: %s", myproc.nspace,
@@ -236,7 +245,7 @@ int main(int argc, char **argv)
         }
 
         /* check the returned data */
-        (void) strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
+        pmix_strncpy(proc.nspace, myproc.nspace, PMIX_MAX_NSLEN);
         for (j = 0; j <= cnt; j++) {
             for (n = 0; n < nprocs; n++) {
                 proc.rank = n;

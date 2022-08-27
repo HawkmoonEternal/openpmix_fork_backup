@@ -8,7 +8,7 @@
  * Copyright (c) 2016      Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -43,7 +43,7 @@
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #endif
-#include PMIX_EVENT_HEADER
+#include <event.h>
 
 #include "src/class/pmix_list.h"
 #include "src/mca/bfrops/bfrops.h"
@@ -52,12 +52,12 @@
 #include "src/mca/pmdl/pmdl.h"
 #include "src/mca/pnet/base/base.h"
 #include "src/mca/ptl/ptl.h"
-#include "src/threads/threads.h"
-#include "src/util/argv.h"
-#include "src/util/basename.h"
-#include "src/util/error.h"
-#include "src/util/name_fns.h"
-#include "src/util/output.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_basename.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
 #include "src/util/pmix_getcwd.h"
 
@@ -130,7 +130,6 @@ PMIX_EXPORT pmix_status_t PMIx_Spawn_nb(const pmix_info_t job_info[], size_t nin
     pmix_buffer_t *msg;
     pmix_cmd_t cmd = PMIX_SPAWNNB_CMD;
     pmix_status_t rc;
-    pmix_cb_t *cb;
     size_t n, m;
     pmix_app_t *aptr;
     bool jobenvars = false;
@@ -145,7 +144,8 @@ PMIX_EXPORT pmix_status_t PMIx_Spawn_nb(const pmix_info_t job_info[], size_t nin
 
     PMIX_ACQUIRE_THREAD(&pmix_global_lock);
 
-    pmix_output_verbose(2, pmix_client_globals.spawn_output, "%s pmix: spawn_nb called",
+    pmix_output_verbose(2, pmix_client_globals.spawn_output,
+                        "%s pmix: spawn_nb called",
                         PMIX_NAME_PRINT(&pmix_globals.myid));
 
     if (pmix_globals.init_cntr <= 0) {
@@ -261,6 +261,11 @@ PMIX_EXPORT pmix_status_t PMIx_Spawn_nb(const pmix_info_t job_info[], size_t nin
     /* if we are a server, then process this ourselves */
     if (PMIX_PEER_IS_SERVER(pmix_globals.mypeer) &&
         !PMIX_PEER_IS_LAUNCHER(pmix_globals.mypeer)) {
+
+        if (NULL == pmix_host_server.spawn) {
+            return PMIX_ERR_NOT_SUPPORTED;
+        }
+
         cd = PMIX_NEW(pmix_setup_caddy_t);
         if (NULL == cd) {
             return PMIX_ERR_NOMEM;
@@ -352,15 +357,24 @@ PMIX_EXPORT pmix_status_t PMIx_Spawn_nb(const pmix_info_t job_info[], size_t nin
     /* create a callback object as we need to pass it to the
      * recv routine so we know which callback to use when
      * the return message is recvd */
-    cb = PMIX_NEW(pmix_cb_t);
-    cb->cbfunc.spawnfn = cbfunc;
-    cb->cbdata = cbdata;
+    cd = PMIX_NEW(pmix_setup_caddy_t);
+    if (NULL == cd) {
+        return PMIX_ERR_NOMEM;
+    }
+    cd->spcbfunc = cbfunc;
+    cd->cbdata = cbdata;
+    cd->info = (pmix_info_t*)job_info;
+    cd->ninfo = ninfo;
+    // mark that we are using the input data
+    cd->copied = false;
+    /* check for IOF flags */
+    pmix_server_spawn_parser(pmix_globals.mypeer, cd);
 
     /* push the message into our event base to send to the server */
-    PMIX_PTL_SEND_RECV(rc, pmix_client_globals.myserver, msg, wait_cbfunc, (void *) cb);
+    PMIX_PTL_SEND_RECV(rc, pmix_client_globals.myserver, msg, wait_cbfunc, (void *) cd);
     if (PMIX_SUCCESS != rc) {
         PMIX_RELEASE(msg);
-        PMIX_RELEASE(cb);
+        PMIX_RELEASE(cd);
     }
 
     return rc;
@@ -370,17 +384,19 @@ PMIX_EXPORT pmix_status_t PMIx_Spawn_nb(const pmix_info_t job_info[], size_t nin
 static void wait_cbfunc(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer_t *buf,
                         void *cbdata)
 {
-    pmix_cb_t *cb = (pmix_cb_t *) cbdata;
+    pmix_setup_caddy_t *cd = (pmix_setup_caddy_t *) cbdata;
     char nspace[PMIX_MAX_NSLEN + 1];
     char *n2 = NULL;
     pmix_status_t rc, ret;
     int32_t cnt;
+    pmix_namespace_t *nptr, *ns;
 
-    PMIX_ACQUIRE_OBJECT(cb);
+    PMIX_ACQUIRE_OBJECT(cd);
 
     pmix_output_verbose(2, pmix_globals.debug_output,
-                        "pmix:client recv callback activated with %d bytes",
+                        "pmix:client recv spawn callback activated with %d bytes",
                         (NULL == buf) ? -1 : (int) buf->bytes_used);
+    PMIX_HIDE_UNUSED_PARAMS(pr, hdr);
 
     /* init */
     memset(nspace, 0, PMIX_MAX_NSLEN + 1);
@@ -410,7 +426,8 @@ static void wait_cbfunc(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer
         PMIX_ERROR_LOG(rc);
         ret = rc;
     }
-    pmix_output_verbose(1, pmix_globals.debug_output, "pmix:client recv '%s'", n2);
+    pmix_output_verbose(1, pmix_globals.debug_output,
+                        "pmix:client recv '%s'", n2);
 
     if (NULL != n2) {
         /* protect length */
@@ -422,13 +439,39 @@ static void wait_cbfunc(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer
             PMIX_ERROR_LOG(rc);
             ret = rc;
         }
+        /* process any IOF flags - we are only concerned if we are a TOOL
+         * and need to know if/how we should output any IO */
+        if (PMIX_PEER_IS_TOOL(pmix_globals.mypeer)) {
+            nptr = NULL;
+            PMIX_LIST_FOREACH (ns, &pmix_globals.nspaces, pmix_namespace_t)
+            {
+                if (PMIX_CHECK_NSPACE(ns->nspace, nspace)) {
+                    nptr = ns;
+                    break;
+                }
+            }
+            if (NULL == nptr) {
+                /* shouldn't happen, but protect us */
+                nptr = PMIX_NEW(pmix_namespace_t);
+                nptr->nspace = strdup(nspace);
+                pmix_list_append(&pmix_globals.nspaces, &nptr->super);
+            }
+            /* as a client, we only handle a select set of the flags */
+            memcpy(&nptr->iof_flags, &cd->flags, sizeof(pmix_iof_flags_t));
+            nptr->iof_flags.file = NULL;
+            nptr->iof_flags.directory = NULL;
+            /* since we are not a server, nocopy equates to no_local_output */
+            if (cd->flags.nocopy) {
+                nptr->iof_flags.local_output = false;
+            }
+        }
     }
 
 report:
-    if (NULL != cb->cbfunc.spawnfn) {
-        cb->cbfunc.spawnfn(ret, nspace, cb->cbdata);
+    if (NULL != cd->spcbfunc) {
+        cd->spcbfunc(ret, nspace, cd->cbdata);
     }
-    PMIX_RELEASE(cb);
+    PMIX_RELEASE(cd);
 }
 
 static void spawn_cbfunc(pmix_status_t status, char nspace[], void *cbdata)

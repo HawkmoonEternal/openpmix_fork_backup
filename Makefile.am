@@ -14,6 +14,7 @@
 # Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
 # Copyright (c) 2019      Amazon.com, Inc. or its affiliates.  All Rights
 #                         reserved.
+# Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
 # $COPYRIGHT$
 #
 # Additional copyrights may follow
@@ -32,31 +33,19 @@ AM_DISTCHECK_CONFIGURE_FLAGS = --disable-dlopen
 headers =
 sources =
 nodist_headers =
-EXTRA_DIST = AUTHORS README HACKING INSTALL VERSION LICENSE autogen.pl Makefile.pmix-rules
+EXTRA_DIST = AUTHORS README HACKING INSTALL VERSION LICENSE autogen.pl EXCEPTIONS
 
 # Only install the valgrind suppressions file and man pages
 # if we're building in standalone mode
 dist_pmixdata_DATA =
-if ! PMIX_EMBEDDED_MODE
 dist_pmixdata_DATA += contrib/pmix-valgrind.supp
 
-endif
-
 if PMIX_TESTS_EXAMPLES
-SUBDIRS += . test examples
+SUBDIRS += . test/test_v2 test examples
 endif
 
-if WANT_INSTALL_HEADERS
 pmixdir = $(pmixincludedir)/$(subdir)
 nobase_pmix_HEADERS = $(headers)
-
-else
-
-noinst_HEADERS = $(headers)
-endif
-
-nroff:
-	(cd man; $(MAKE) nroff)
 
 dist-hook:
 	env LS_COLORS= sh "$(top_srcdir)/config/distscript.sh" "$(top_srcdir)" "$(distdir)" "$(PMIX_VERSION)" "$(PMIX_REPO_REV)"

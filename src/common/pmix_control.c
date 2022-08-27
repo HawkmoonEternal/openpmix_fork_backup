@@ -6,7 +6,7 @@
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
  * Copyright (c) 2019      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -19,16 +19,16 @@
 #include "src/include/pmix_stdint.h"
 
 #include "include/pmix.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "include/pmix_server.h"
 
 #include "src/mca/bfrops/bfrops.h"
 #include "src/mca/ptl/ptl.h"
-#include "src/threads/threads.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/name_fns.h"
-#include "src/util/output.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_output.h"
 
 #include "src/client/pmix_client_ops.h"
 #include "src/include/pmix_globals.h"
@@ -45,13 +45,14 @@ static void relcbfunc(void *cbdata)
     }
     PMIX_RELEASE(cd);
 }
-static void query_cbfunc(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr, pmix_buffer_t *buf,
-                         void *cbdata)
+static void query_cbfunc(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr,
+                         pmix_buffer_t *buf, void *cbdata)
 {
     pmix_query_caddy_t *cd = (pmix_query_caddy_t *) cbdata;
     pmix_status_t rc;
     pmix_shift_caddy_t *results;
     int cnt;
+    PMIX_HIDE_UNUSED_PARAMS(hdr);
 
     pmix_output_verbose(2, pmix_globals.debug_output,
                         "pmix:job_ctrl cback from server with %d bytes", (int) buf->bytes_used);

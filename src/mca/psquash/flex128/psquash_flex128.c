@@ -4,7 +4,7 @@
  *                         All rights reserved.
  *
  * Copyright (c) 2020      Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -14,13 +14,13 @@
 
 #include "src/include/pmix_config.h"
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "src/include/pmix_globals.h"
 #include "src/include/pmix_socket_errno.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/output.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_output.h"
 
 #include <unistd.h>
 #ifdef HAVE_SYS_TYPES_H
@@ -303,7 +303,7 @@ static pmix_status_t flex128_decode_int(pmix_data_type_t type, void *src, size_t
  *
  * This encoding changes the default representation by introducing an additional
  * bit per each byte to store a "continuation flag". So integers are now encoded
- * with the same representation, but the base B = 128 and the remaning bit is
+ * with the same representation, but the base B = 128 and the remaining bit is
  * used to indicate whether or not the next byte contains more bits of this value.
  */
 static size_t flex_pack_integer(size_t val, uint8_t out_buf[FLEX_BASE7_MAX_BUF_SIZE])

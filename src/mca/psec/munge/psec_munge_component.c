@@ -13,7 +13,7 @@
  * Copyright (c) 2015      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -28,7 +28,7 @@
  */
 
 #include "src/include/pmix_config.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "psec_munge.h"
 #include "src/mca/psec/psec.h"
@@ -42,7 +42,7 @@ static pmix_psec_module_t *assign_module(void);
  * Instantiate the public struct with all of our public information
  * and pointers to our public functions in it
  */
-pmix_psec_base_component_t mca_psec_munge_component = {
+pmix_psec_base_component_t pmix_mca_psec_munge_component = {
     .base = {
         PMIX_PSEC_BASE_VERSION_1_0_0,
 
@@ -57,10 +57,6 @@ pmix_psec_base_component_t mca_psec_munge_component = {
         .pmix_mca_open_component = component_open,
         .pmix_mca_close_component = component_close,
         .pmix_mca_query_component = component_query,
-    },
-    .data = {
-        /* The component is checkpoint ready */
-        PMIX_MCA_BASE_METADATA_PARAM_CHECKPOINT
     },
     .assign_module = assign_module
 };

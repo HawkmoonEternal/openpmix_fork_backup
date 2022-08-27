@@ -6,9 +6,9 @@
  *                         and Technology (RIST). All rights reserved.
  * Copyright (c) 2015-2018 Mellanox Technologies, Inc.
  *                         All rights reserved.
- * Copyright (c) 2020      Triad National Security, LLC.
+ * Copyright (c) 2020-2021 Triad National Security, LLC.
  *                         All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -20,8 +20,8 @@
 #ifndef TEST_COMMON_H
 #define TEST_COMMON_H
 
-#include <pmix_common.h>
-#include <src/include/pmix_config.h>
+#include "pmix_common.h"
+#include "src/include/pmix_config.h"
 
 #include <inttypes.h>
 #include <stdint.h>
@@ -33,7 +33,7 @@
 
 #include "src/class/pmix_list.h"
 #include "src/include/pmix_globals.h"
-#include "src/util/argv.h"
+#include "src/util/pmix_argv.h"
 
 #define TEST_NAMESPACE "smoky_nspace"
 
@@ -75,7 +75,7 @@ extern FILE *pmixt_outfile;
     {                                                                                        \
         struct timeval tv;                                                                   \
         gettimeofday(&tv, NULL);                                                             \
-        double ts = tv.tv_sec + 1E-6 * tv.tv_usec;                                           \
+        double ts = (double)tv.tv_sec + 1E-6 * (double)tv.tv_usec;                           \
         fprintf(pmixt_outfile, "==%d== [%lf] %s:%s: %s\n", getpid(), ts, STRIPPED_FILE_NAME, \
                 __func__, pmix_test_output_prepare x);                                       \
         fflush(pmixt_outfile);                                                               \
@@ -94,7 +94,7 @@ extern FILE *pmixt_outfile;
     {                                                                                            \
         struct timeval tv;                                                                       \
         gettimeofday(&tv, NULL);                                                                 \
-        double ts = tv.tv_sec + 1E-6 * tv.tv_usec;                                               \
+        double ts = (double)tv.tv_sec + 1E-6 * (double)tv.tv_usec;                               \
         fprintf(stderr, "==%d== [%lf] ERROR [%s:%d:%s]: %s\n", getpid(), ts, STRIPPED_FILE_NAME, \
                 __LINE__, __func__, pmix_test_output_prepare x);                                 \
         fflush(stderr);                                                                          \
@@ -127,11 +127,11 @@ extern FILE *pmixt_outfile;
     char *fname = malloc( strlen(prefix) + MAX_DIGIT_LEN + 2 ); \
     sprintf(fname, "%s.%d.%d", prefix, ns_id, rank); \
     pmixt_outfile = fopen(fname, "w"); \
-    free(fname); \
     if( NULL == pmixt_outfile ){ \
         fprintf(stderr, "Cannot open file %s for writing!", fname); \
         exit(1); \
     } \
+    free(fname); \
 }
 
 #define PMIXT_CLOSE_FILE() { \
@@ -174,7 +174,7 @@ typedef struct {
     char pmix_hostname[PMIX_MAX_KEYLEN];
 } node_map;
 
-node_map *nodes;
+extern node_map *nodes;
 
 // order of these fields should be in order that we introduce them
 typedef struct {
@@ -197,8 +197,7 @@ typedef struct {
     // more as needed
 } validation_params;
 
-validation_params val_params;
-char *v_params_ascii_str;
+extern char *v_params_ascii_str;
 
 typedef struct {
     char *binary;
@@ -216,11 +215,10 @@ typedef struct {
     double fence_time_multiplier;
 } test_params;
 
-extern test_params params;
 
 void parse_cmd_server(int argc, char **argv, test_params *params, validation_params *v_params, char ***t_argv);
 void parse_cmd_client(int argc, char **argv, test_params *params, validation_params *v_params,
-                      int (*parse_test_ptr)());
+                      int (*parse_test_ptr)(int *, int, char **, test_params *, validation_params *));
 void parse_rank_placement_string(char *placement_str, int num_nodes);
 void populate_nodes_default_placement(uint32_t num_nodes, int num_procs);
 void populate_nodes_custom_placement_string(char *placement_str, int num_nodes);
@@ -231,16 +229,17 @@ int parse_replace(char *replace_param, int store, int *key_num);
 
 void default_params(test_params *params, validation_params *v_params);
 void init_nodes(int num_nodes);
+void free_nodes(int num_nodes);
 void free_params(test_params *params, validation_params *vparams);
 void set_client_argv(test_params *params, char ***argv, char **ltest_argv);
 
-void pmixt_exit(int exit_code);
-void pmixt_fix_rank_and_ns(pmix_proc_t *this_proc, test_params *params,
-                           validation_params *v_params);
+void pmixt_exit(int exit_code) __attribute__((__noreturn__));
+void pmixt_fix_rank_and_ns(pmix_proc_t *this_proc, validation_params *v_params);
 void pmixt_post_init(pmix_proc_t *this_proc, test_params *params, validation_params *val_params);
 void pmixt_post_finalize(pmix_proc_t *this_proc, test_params *params, validation_params *v_params);
-void pmixt_pre_init(int argc, char **argv, test_params *params, validation_params *v_params, int (*parse_tst_ptr)());
-void pmixt_validate_predefined(pmix_proc_t *myproc, const pmix_key_t key, pmix_value_t *value,
+void pmixt_pre_init(int argc, char **argv, test_params *params, validation_params *v_params,
+                    int (*parse_tst_ptr)(int *, int, char **, test_params *, validation_params *));
+void pmixt_validate_predefined(pmix_proc_t *myproc, const char *key, pmix_value_t *value,
                                const pmix_data_type_t expected_type, validation_params *val_params);
 
 char *pmixt_encode(const void *val, size_t vallen);
@@ -318,7 +317,7 @@ typedef struct {
         TEST_VERBOSE(("%s:%d want to get from %s:%d key %s", my_nspace, my_rank, ns, r, key));  \
         if (blocking) {                                                                         \
             if (PMIX_SUCCESS != (rc = PMIx_Get(&foobar, key, NULL, 0, &val))) {                 \
-                if (!((rc == PMIX_ERR_NOT_FOUND || rc == PMIX_ERR_PROC_ENTRY_NOT_FOUND)         \
+                if (!((rc == PMIX_ERR_NOT_FOUND)         \
                       && ok_notfnd)) {                                                          \
                     TEST_ERROR(("%s:%d: PMIx_Get failed: %s from %s:%d, key %s", my_nspace,     \
                                 my_rank, PMIx_Error_string(rc), ns, r, key));                   \
@@ -348,8 +347,7 @@ typedef struct {
         }                                                                                       \
         if (PMIX_SUCCESS == rc) {                                                               \
             if (PMIX_SUCCESS != cbdata.status) {                                                \
-                if (!((cbdata.status == PMIX_ERR_NOT_FOUND                                      \
-                       || cbdata.status == PMIX_ERR_PROC_ENTRY_NOT_FOUND)                       \
+                if (!((cbdata.status == PMIX_ERR_NOT_FOUND)                                     \
                       && ok_notfnd)) {                                                          \
                     TEST_ERROR(("%s:%d: PMIx_Get_nb failed: %s from %s:%d, key=%s", my_nspace,  \
                                 my_rank, PMIx_Error_string(rc), my_nspace, r, key));            \
@@ -383,7 +381,7 @@ typedef struct {
             if (data_ex) {                                                                    \
                 bool value = 1;                                                               \
                 PMIX_INFO_CREATE(info, 1);                                                    \
-                (void) strncpy(info->key, PMIX_COLLECT_DATA, PMIX_MAX_KEYLEN);                \
+                pmix_strncpy(info->key, PMIX_COLLECT_DATA, PMIX_MAX_KEYLEN);                \
                 pmix_value_load(&info->value, &value, PMIX_BOOL);                             \
                 ninfo = 1;                                                                    \
             }                                                                                 \

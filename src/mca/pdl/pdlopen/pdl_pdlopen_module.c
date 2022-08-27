@@ -5,7 +5,7 @@
  *                         reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -22,10 +22,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/mca/pdl/pdl.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
 
 #include "pdl_pdlopen.h"
 
@@ -71,8 +71,8 @@ static int pdlopen_open(const char *fname, bool use_ext, bool private_namespace,
         int i;
         char *ext;
 
-        for (i = 0, ext = mca_pdl_pdlopen_component.filename_suffixes[i]; NULL != ext;
-             ext = mca_pdl_pdlopen_component.filename_suffixes[++i]) {
+        for (i = 0, ext = pmix_mca_pdl_pdlopen_component.filename_suffixes[i]; NULL != ext;
+             ext = pmix_mca_pdl_pdlopen_component.filename_suffixes[++i]) {
             char *name;
 
             rc = asprintf(&name, "%s%s", fname, ext);
@@ -85,7 +85,7 @@ static int pdlopen_open(const char *fname, bool use_ext, bool private_namespace,
 
             /* Does the file exist? */
             struct stat buf;
-            /* coverity[toctou] */
+            /* coverity[TOCTOU] */
             if (stat(name, &buf) < 0) {
                 if (NULL != err_msg) {
                     rc = asprintf(err_msg, "File %s not found", name);
@@ -197,7 +197,7 @@ static int pdlopen_foreachfile(const char *search_path,
 
             /* Stat the file */
             struct stat buf;
-            /* coverity[toctou] */
+            /* coverity[TOCTOU] */
             if (stat(abs_name, &buf) < 0) {
                 free(abs_name);
                 ret = PMIX_ERR_IN_ERRNO;

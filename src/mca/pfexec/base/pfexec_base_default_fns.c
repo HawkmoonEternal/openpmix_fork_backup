@@ -19,7 +19,9 @@
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2017      Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2017      IBM Corporation. All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting  All rights reserved.
+ * Copyright (c) 2022      Amazon.com, Inc. or its affiliates.
+ *                         All Rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -59,25 +61,25 @@
 #endif
 
 #include "include/pmix.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "include/pmix_server.h"
 
 #include "src/include/pmix_globals.h"
 #include "src/include/pmix_stdint.h"
 #include "src/mca/gds/base/base.h"
 #include "src/mca/ptl/base/base.h"
-#include "src/threads/threads.h"
-#include "src/util/argv.h"
-#include "src/util/context_fns.h"
-#include "src/util/error.h"
-#include "src/util/name_fns.h"
-#include "src/util/os_dirpath.h"
-#include "src/util/os_path.h"
-#include "src/util/path.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_context_fns.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_name_fns.h"
+#include "src/util/pmix_os_dirpath.h"
+#include "src/util/pmix_os_path.h"
+#include "src/util/pmix_path.h"
 #include "src/util/pmix_environ.h"
 #include "src/util/pmix_pty.h"
-#include "src/util/printf.h"
-#include "src/util/show_help.h"
+#include "src/util/pmix_printf.h"
+#include "src/util/pmix_show_help.h"
 
 #include "src/client/pmix_client_ops.h"
 #include "src/mca/pfexec/base/base.h"
@@ -97,7 +99,7 @@ static pmix_status_t setup_path(pmix_app_t *app)
            exists and is executable The function will
            take care of outputting a pretty error message, if required
         */
-        if (PMIX_SUCCESS != (rc = pmix_util_check_context_cwd(app))) {
+        if (PMIX_SUCCESS != (rc = pmix_util_check_context_cwd(&app->cwd, true, true))) {
             /* do not ERROR_LOG - it will be reported elsewhere */
             return rc;
         }
@@ -120,15 +122,13 @@ static pmix_status_t setup_path(pmix_app_t *app)
     }
 
     /* ensure the app is pointing to a full path */
-    rc = pmix_util_check_context_app(app, app->env);
+    rc = pmix_util_check_context_app(&app->cmd, app->cwd, app->env);
 
     return rc;
 }
 
 void pmix_pfexec_base_spawn_proc(int sd, short args, void *cbdata)
 {
-    (void) sd;
-    (void) args;
     pmix_pfexec_fork_caddy_t *fcd = (pmix_pfexec_fork_caddy_t *) cbdata;
     pmix_app_t *app;
     int i, n;
@@ -141,10 +141,13 @@ void pmix_pfexec_base_spawn_proc(int sd, short args, void *cbdata)
     pmix_rank_info_t *info;
     pmix_namespace_t *nptr;
     pmix_rank_t rank = 0;
-    char tmp[2048], *ptr;
+    char tmp[2048];
     bool nohup = false;
+    char *security_mode;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
-    pmix_output_verbose(5, pmix_pfexec_base_framework.framework_output, "%s pfexec:base spawn proc",
+    pmix_output_verbose(5, pmix_pfexec_base_framework.framework_output,
+                        "%s pfexec:base spawn proc",
                         PMIX_NAME_PRINT(&pmix_globals.myid));
 
     /* establish our baseline working directory - we will be potentially
@@ -158,7 +161,7 @@ void pmix_pfexec_base_spawn_proc(int sd, short args, void *cbdata)
 
     /* create a namespace for the new job */
     memset(tmp, 0, 2048);
-    (void) snprintf(tmp, 2047, "%s:%lu", pmix_globals.myid.nspace,
+    (void) pmix_snprintf(tmp, 2047, "%s:%lu", pmix_globals.myid.nspace,
                     (unsigned long) pmix_pfexec_globals.nextid);
     PMIX_LOAD_NSPACE(nspace, tmp);
     ++pmix_pfexec_globals.nextid;
@@ -194,18 +197,10 @@ void pmix_pfexec_base_spawn_proc(int sd, short args, void *cbdata)
      * launch their procs */
     for (m = 0; m < fcd->napps; m++) {
         app = (pmix_app_t *) &fcd->apps[m];
-
         /* merge our launch environment into the app's */
-        for (i = 0; NULL != environ[i]; i++) {
-            ptr = strchr(environ[i], '=');
-            if (NULL == ptr) {
-                continue;
-            }
-            *ptr = '\0';
-            ++ptr;
-            pmix_setenv(environ[i], ptr, false, &app->env); // do not overwrite a given value
-            --ptr;
-            *ptr = '=';
+        rc = pmix_environ_merge_inplace(&app->env, environ);
+        if (PMIX_SUCCESS != rc) {
+            goto complete;
         }
 
         /* process any job-info */
@@ -303,10 +298,20 @@ void pmix_pfexec_base_spawn_proc(int sd, short args, void *cbdata)
 
             /* pass the rank */
             memset(tmp, 0, 2048);
-            (void) snprintf(tmp, 2047, "%u", child->proc.rank);
+            (void) pmix_snprintf(tmp, 2047, "%u", child->proc.rank);
             pmix_setenv("PMIX_RANK", tmp, true, &env);
             pmix_setenv("PMIX_SERVER_RANK", tmp, true, &env);
 
+            /* pass our active security modules */
+            security_mode = pmix_psec_base_get_available_modules();
+            pmix_setenv("PMIX_SECURITY_MODE", security_mode, true, &env);
+            free(security_mode);
+            /* pass the type of buffer we are using */
+            if (PMIX_BFROP_BUFFER_FULLY_DESC == pmix_globals.mypeer->nptr->compat.type) {
+                pmix_setenv("PMIX_BFROP_BUFFER_TYPE", "PMIX_BFROP_BUFFER_FULLY_DESC", true, &env);
+            } else {
+                pmix_setenv("PMIX_BFROP_BUFFER_TYPE", "PMIX_BFROP_BUFFER_NON_DESC", true, &env);
+            }
             /* get any PTL contribution such as tmpdir settings for session files */
             if (PMIX_SUCCESS != (rc = pmix_ptl.setup_fork(&child->proc, &env))) {
                 PMIX_ERROR_LOG(rc);
@@ -323,8 +328,14 @@ void pmix_pfexec_base_spawn_proc(int sd, short args, void *cbdata)
 
             /* setup a keepalive pipe unless "nohup" was given */
             if (!nohup) {
-                pipe(child->keepalive);
-                snprintf(sock, 10, "%d", child->keepalive[1]);
+                rc = pipe(child->keepalive);
+                if (0 != rc) {
+                    PMIX_ERROR_LOG(PMIX_ERR_SYS_OTHER);
+                    pmix_list_remove_item(&pmix_pfexec_globals.children, &child->super);
+                    PMIX_RELEASE(child);
+                    goto complete;
+                }
+                pmix_snprintf(sock, 10, "%d", child->keepalive[1]);
                 pmix_setenv("PMIX_KEEPALIVE_PIPE", sock, true, &env);
             }
 
@@ -360,10 +371,9 @@ complete:
 
 void pmix_pfexec_base_kill_proc(int sd, short args, void *cbdata)
 {
-    (void) sd;
-    (void) args;
     pmix_pfexec_signal_caddy_t *scd = (pmix_pfexec_signal_caddy_t *) cbdata;
     pmix_pfexec_child_t *child, *cd;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
     /* find the process */
     child = NULL;
@@ -378,14 +388,6 @@ void pmix_pfexec_base_kill_proc(int sd, short args, void *cbdata)
         PMIX_WAKEUP_THREAD(scd->lock);
         return;
     }
-
-#if 0
-    /* if we opened the stdin IOF channel, be sure
-     * we close it */
-    if (NULL != orte_iof.close) {
-        orte_iof.close(&child->name, ORTE_IOF_STDIN);
-    }
-#endif
 
     /* remove the child from the list so waitpid callback won't
      * find it as this induces unmanageable race
@@ -421,20 +423,14 @@ void pmix_pfexec_base_kill_proc(int sd, short args, void *cbdata)
     PMIX_RELEASE(child);
     PMIX_WAKEUP_THREAD(scd->lock);
 
-#if 0
-    /* ensure the child's session directory is cleaned up */
-    orte_session_dir_finalize(&child->name);
-#endif
-
     return;
 }
 
 void pmix_pfexec_base_signal_proc(int sd, short args, void *cbdata)
 {
-    (void) sd;
-    (void) args;
     pmix_pfexec_signal_caddy_t *scd = (pmix_pfexec_signal_caddy_t *) cbdata;
     pmix_pfexec_child_t *child, *cd;
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
 
     /* find the process */
     child = NULL;
@@ -461,8 +457,6 @@ static pmix_status_t setup_prefork(pmix_pfexec_child_t *child)
 {
     int ret = -1;
     pmix_pfexec_base_io_conf_t *opts = &child->opts;
-    pmix_proc_t *targets = NULL;
-    pmix_info_t *directives = NULL;
 
     fflush(stdout);
 
@@ -483,36 +477,28 @@ static pmix_status_t setup_prefork(pmix_pfexec_child_t *child)
             return PMIX_ERR_SYS_OTHER;
         }
     }
-    if (opts->connect_stdin) {
-        if (pipe(opts->p_stdin) < 0) {
-            PMIX_ERROR_LOG(PMIX_ERR_SYS_OTHER);
-            return PMIX_ERR_SYS_OTHER;
-        }
+    /* always leave stdin available in case we forward to it */
+    if (pipe(opts->p_stdin) < 0) {
+        PMIX_ERROR_LOG(PMIX_ERR_SYS_OTHER);
+        return PMIX_ERR_SYS_OTHER;
     }
+
     if (pipe(opts->p_stderr) < 0) {
         PMIX_ERROR_LOG(PMIX_ERR_SYS_OTHER);
         return PMIX_ERR_SYS_OTHER;
     }
 
-#if 0
-    /* connect stdin endpoint */
-    if (opts->connect_stdin) {
-        /* and connect the pty to stdin */
-        ret = orte_iof.pull(name, ORTE_IOF_STDIN, opts->p_stdin[1]);
-        if(ORTE_SUCCESS != ret) {
-            ORTE_ERROR_LOG(ret);
-            return ret;
-        }
-    }
-#endif
-    /* connect read ends to IOF */
-    PMIX_IOF_READ_EVENT(&child->stdoutev, targets, 0, directives, 0, opts->p_stdout[0],
-                        pmix_iof_read_local_handler, false);
+    /* connect read/write ends to IOF */
+    PMIX_IOF_SINK_DEFINE(&child->stdinsink, &child->proc, opts->p_stdin[1],
+                         PMIX_FWD_STDIN_CHANNEL, pmix_iof_write_handler);
+
+    PMIX_IOF_READ_EVENT_LOCAL(&child->stdoutev, opts->p_stdout[0],
+                              pmix_iof_read_local_handler, false);
     PMIX_LOAD_PROCID(&child->stdoutev->name, child->proc.nspace, child->proc.rank);
     child->stdoutev->childproc = (void *) child;
     child->stdoutev->channel = PMIX_FWD_STDOUT_CHANNEL;
-    PMIX_IOF_READ_EVENT(&child->stderrev, targets, 0, directives, 0, opts->p_stderr[0],
-                        pmix_iof_read_local_handler, false);
+    PMIX_IOF_READ_EVENT_LOCAL(&child->stderrev, opts->p_stderr[0],
+                              pmix_iof_read_local_handler, false);
     PMIX_LOAD_PROCID(&child->stderrev->name, child->proc.nspace, child->proc.rank);
     child->stderrev->childproc = (void *) child;
     child->stderrev->channel = PMIX_FWD_STDERR_CHANNEL;
@@ -525,7 +511,7 @@ pmix_status_t pmix_pfexec_base_setup_child(pmix_pfexec_child_t *child)
     int ret;
     pmix_pfexec_base_io_conf_t *opts = &child->opts;
 
-    if (opts->connect_stdin && 0 <= opts->p_stdin[1]) {
+    if (0 <= opts->p_stdin[1]) {
         close(opts->p_stdin[1]);
         opts->p_stdin[1] = -1;
     }
@@ -570,33 +556,15 @@ pmix_status_t pmix_pfexec_base_setup_child(pmix_pfexec_child_t *child)
             }
         }
     }
-    if (opts->connect_stdin) {
-        if (opts->p_stdin[0] != fileno(stdin)) {
-            ret = dup2(opts->p_stdin[0], fileno(stdin));
-            if (ret < 0) {
-                return PMIX_ERR_SYS_OTHER;
-            }
-            if (0 <= opts->p_stdin[0]) {
-                close(opts->p_stdin[0]);
-                opts->p_stdin[0] = -1;
-            }
+    if (opts->p_stdin[0] != fileno(stdin)) {
+        ret = dup2(opts->p_stdin[0], fileno(stdin));
+        if (ret < 0) {
+            return PMIX_ERR_SYS_OTHER;
         }
-    } else {
-        int fd;
-
-        /* connect input to /dev/null */
-        fd = open("/dev/null", O_RDONLY, 0);
-        if (0 > fd) {
-            return PMIX_ERROR;
+        if (0 <= opts->p_stdin[0]) {
+            close(opts->p_stdin[0]);
+            opts->p_stdin[0] = -1;
         }
-        if (fd != fileno(stdin)) {
-            ret = dup2(fd, fileno(stdin));
-            if (ret < 0) {
-                close(fd);
-                return PMIX_ERR_SYS_OTHER;
-            }
-        }
-        close(fd);
     }
 
     if (opts->p_stderr[1] != fileno(stderr)) {
@@ -668,6 +636,13 @@ static pmix_status_t register_nspace(char *nspace, pmix_pfexec_fork_caddy_t *fcd
 
     /* hostname */
     PMIX_INFO_LIST_ADD(rc, jinfo, PMIX_HOSTNAME, pmix_globals.hostname, PMIX_STRING);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_INFO_LIST_RELEASE(jinfo);
+        return rc;
+    }
+
+    /* mark us as the parent */
+    PMIX_INFO_LIST_ADD(rc, jinfo, PMIX_PARENT_ID, &pmix_globals.myid, PMIX_PROC);
     if (PMIX_SUCCESS != rc) {
         PMIX_INFO_LIST_RELEASE(jinfo);
         return rc;

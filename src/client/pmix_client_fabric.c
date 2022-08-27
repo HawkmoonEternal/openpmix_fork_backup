@@ -8,7 +8,7 @@
  * Copyright (c) 2016      Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -21,7 +21,7 @@
 
 #include "src/include/pmix_socket_errno.h"
 #include "src/include/pmix_stdint.h"
-#include "src/include/types.h"
+#include "src/include/pmix_types.h"
 
 #include "src/include/pmix_globals.h"
 
@@ -44,15 +44,14 @@
 #ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #endif
-#include PMIX_EVENT_HEADER
+#include <event.h>
 
 #include "src/class/pmix_list.h"
 #include "src/client/pmix_client_ops.h"
-#include "src/mca/ploc/ploc.h"
 #include "src/mca/pnet/base/base.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/output.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
 
 static void fcb(pmix_status_t status, pmix_info_t *info, size_t ninfo, void *cbdata,
@@ -86,6 +85,8 @@ static void frecv(struct pmix_peer_t *peer, pmix_ptl_hdr_t *hdr, pmix_buffer_t *
     pmix_cb_t *cb = (pmix_cb_t *) cbdata;
     pmix_status_t rc;
     int cnt;
+
+    PMIX_HIDE_UNUSED_PARAMS(hdr);
 
     pmix_output_verbose(2, pmix_globals.debug_output, "pmix:fabric recv from server with %d bytes",
                         (int) buf->bytes_used);
@@ -432,6 +433,8 @@ PMIX_EXPORT pmix_status_t PMIx_Fabric_deregister_nb(pmix_fabric_t *fabric, pmix_
                                                     void *cbdata)
 {
     pmix_status_t rc;
+
+    PMIX_HIDE_UNUSED_PARAMS(cbfunc, cbdata);
 
     PMIX_ACQUIRE_THREAD(&pmix_global_lock);
 

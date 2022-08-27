@@ -5,7 +5,7 @@
  * Copyright (c) 2015      Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2019-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -16,7 +16,7 @@
 #include "pmix_config.h"
 
 #include "compress_zlib.h"
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 #include "src/mca/pcompress/base/base.h"
 
 /*
@@ -34,7 +34,7 @@ static int compress_zlib_query(pmix_mca_base_module_t **module, int *priority);
  * Instantiate the public struct with all of our public information
  * and pointer to our public functions in it
  */
-PMIX_EXPORT pmix_mca_base_component_t mca_pcompress_zlib_component = {
+PMIX_EXPORT pmix_mca_base_component_t pmix_mca_pcompress_zlib_component = {
     /* Handle the general mca_component_t struct containing
      *  meta information about the component zlib
      */
@@ -46,7 +46,8 @@ PMIX_EXPORT pmix_mca_base_component_t mca_pcompress_zlib_component = {
                                PMIX_RELEASE_VERSION),
 
     /* Component open and close functions */
-    .pmix_mca_query_component = compress_zlib_query};
+    .pmix_mca_query_component = compress_zlib_query
+};
 
 static int compress_zlib_query(pmix_mca_base_module_t **module, int *priority)
 {

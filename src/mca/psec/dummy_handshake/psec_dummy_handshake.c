@@ -3,7 +3,7 @@
  * Copyright (c) 2019      Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2020      Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -18,11 +18,12 @@
 #    include <sys/types.h>
 #endif
 
-#include "include/pmix_common.h"
+#include "pmix_common.h"
 
 #include "src/include/pmix_globals.h"
-#include "src/util/error.h"
-#include "src/util/output.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_printf.h"
 
 #include "psec_dummy_handshake.h"
 #include "src/mca/psec/base/base.h"
@@ -86,7 +87,7 @@ static pmix_status_t server_hndshk(int sd)
 
     pmix_output_verbose(2, pmix_psec_base_framework.framework_output, "psec: simple server_hndshk");
 
-    asprintf(&hndshk_msg, "%s", PMIX_PSEC_DUMMY_HNDSHK_STR);
+    pmix_asprintf(&hndshk_msg, "%s", PMIX_PSEC_DUMMY_HNDSHK_STR);
     size = strlen(hndshk_msg);
 
     /* send size of handshake message */

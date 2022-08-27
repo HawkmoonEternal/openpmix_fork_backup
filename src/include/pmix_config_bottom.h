@@ -15,7 +15,7 @@
  *                         All rights reserved.
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -414,7 +414,7 @@ typedef PMIX_PTRDIFF_TYPE ptrdiff_t;
 
 #    if !defined(HAVE_ASPRINTF) || !defined(HAVE_SNPRINTF) || !defined(HAVE_VASPRINTF) \
         || !defined(HAVE_VSNPRINTF)
-#        include "util/printf.h"
+#        include "util/pmix_printf.h"
 #    endif
 
 #    ifndef HAVE_ASPRINTF
@@ -433,18 +433,6 @@ typedef PMIX_PTRDIFF_TYPE ptrdiff_t;
 #        define vsnprintf pmix_vsnprintf
 #    endif
 
-/*
- * Some platforms (Solaris) have a broken qsort implementation.  Work
- * around by using our own.
- */
-#    if PMIX_HAVE_BROKEN_QSORT
-#        ifdef qsort
-#            undef qsort
-#        endif
-
-#        include "util/qsort.h"
-#        define qsort pmix_qsort
-#    endif
 
 /*
  * Define __func__-preprocessor directive if the compiler does not
@@ -498,7 +486,7 @@ typedef PMIX_PTRDIFF_TYPE ptrdiff_t;
 /* Prior to Mac OS X 10.3, the length modifier "ll" wasn't
    supported, but "q" was for long long.  This isn't ANSI
    C and causes a warning when using PRI?64 macros.  We
-   don't support versions prior to OS X 10.3, so we dont'
+   don't support versions prior to OS X 10.3, so we don't
    need such backward compatibility.  Instead, redefine
    the macros to be "ll", which is ANSI C and doesn't
    cause a compiler warning. */

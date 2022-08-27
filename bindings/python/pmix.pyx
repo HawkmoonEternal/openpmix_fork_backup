@@ -139,7 +139,7 @@ cdef void collectinventory_cbfunc(pmix_status_t status, pmix_info_t info[],
 
 cdef void pyiofhandler(size_t iofhdlr_id, pmix_iof_channel_t channel,
                        pmix_proc_t *source, pmix_byte_object_t *payload,
-                       pmix_info_t info[], size_t ninfo):
+                       pmix_info_t info[], size_t ninfo) with gil:
     cdef char* kystr
     pychannel = int(channel)
     pyiof_id  = int(iofhdlr_id)
@@ -160,6 +160,7 @@ cdef void pyiofhandler(size_t iofhdlr_id, pmix_iof_channel_t channel,
     if NULL != payload:
         pybytes['bytes'] = payload[0].bytes
         pybytes['size']  = payload[0].size
+
 
     # find the handler being called
     found = False
@@ -183,9 +184,14 @@ cdef void pyiofhandler(size_t iofhdlr_id, pmix_iof_channel_t channel,
         memset(mycaddy.source.nspace, 0, PMIX_MAX_NSLEN+1)
         memcpy(mycaddy.source.nspace, source[0].nspace, PMIX_MAX_NSLEN)
         mycaddy.source.rank         = source[0].rank
-        memset(mycaddy.payload.bytes, 0, PMIX_MAX_NSLEN+1)
-        memcpy(mycaddy.payload.bytes, payload[0].bytes, PMIX_MAX_NSLEN)
-        mycaddy.payload.size        = payload[0].size
+        if payload != NULL:
+            mycaddy.payload.bytes       = <char *>malloc(payload[0].size)
+            memset(mycaddy.payload.bytes, 0, payload[0].size)
+            memcpy(mycaddy.payload.bytes, payload[0].bytes, payload[0].size)
+            mycaddy.payload.size        = payload[0].size
+        else:
+            mycaddy.payload.bytes   = <char *>NULL
+            mycaddy.payload.size    = 0
         mycaddy.info                = info
         mycaddy.ndata               = ninfo
         cb = PyCapsule_New(mycaddy, "iofhdlr_cache", NULL)
@@ -741,12 +747,16 @@ cdef class PMIxClient:
             if 0 < ninfo:
                 pmix_free_info(jinfo, ninfo)
             return rc, None
-        rc = PMIx_Spawn(jinfo, ninfo, apps, napps, nspace)
+        with nogil:
+            rc = PMIx_Spawn(jinfo, ninfo, apps, napps, nspace)
         pmix_free_apps(apps, napps)
         if 0 < ninfo:
             pmix_free_info(jinfo, ninfo)
-        pyns = nspace
-        return rc, pyns.decode('ascii')
+        if PMIX_SUCCESS != rc:
+            pyns = None
+        else:
+            pyns = nspace.decode('ascii')
+        return rc, pyns
 
     def connect(self, peers:list, pyinfo:list):
         cdef pmix_proc_t *procs
@@ -2700,7 +2710,7 @@ cdef void toolconnected(pmix_info_t *info, size_t ninfo,
     # we cannot execute a callback function here as
     # that would cause PMIx to lockup. So we start
     # a new thread on a timer that should execute a
-    # callback after the funciton returns
+    # callback after the function returns
     cdef pmix_proc_t *proc
     proc = NULL
     pmix_copy_nspace(proc[0].nspace, ret_proc['nspace'])
@@ -2785,7 +2795,7 @@ cdef int allocate(const pmix_proc_t *client,
     # we cannot execute a callback function here as
     # that would cause PMIx to lockup. So we start
     # a new thread on a timer that should execute a
-    # callback after the funciton returns
+    # callback after the function returns
     cdef pmix_info_t *info
     cdef pmix_info_t **info_ptr
     cdef size_t ninfo = 0
@@ -3284,6 +3294,7 @@ cdef class PMIxTool(PMIxServer):
         nprocs      = 0
         ndirs       = 0
         channel     = iof_channel
+        cdef pmix_status_t pmix_rc
 
         # convert list of procs to array of pmix_proc_t's
         if pyprocs is not None:
@@ -3308,9 +3319,11 @@ cdef class PMIxTool(PMIxServer):
         rc = pmix_alloc_info(directives_ptr, &ndirs, pydirs)
 
         # Call the library
-        rc = PMIx_IOF_pull(procs, nprocs, directives, ndirs, channel,
-                           pyiofhandler,
-                           NULL, NULL)
+        with nogil:
+             pmix_rc = PMIx_IOF_pull(procs, nprocs, directives, ndirs, channel,
+                                     pyiofhandler,
+                                     NULL, NULL)
+        rc = pmix_rc
         if 0 < nprocs:
             pmix_free_procs(procs, nprocs)
         if 0 < ndirs:

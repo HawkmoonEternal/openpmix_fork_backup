@@ -15,7 +15,7 @@
  * Copyright (c) 2011      Oak Ridge National Labs.  All rights reserved.
  * Copyright (c) 2013-2020 Intel, Inc.  All rights reserved.
  * Copyright (c) 2015      Mellanox Technologies, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -32,13 +32,13 @@
 #include <unistd.h>
 
 #include "include/pmix_tool.h"
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/pinstalldirs/base/base.h"
 #include "src/runtime/pmix_rte.h"
-#include "src/threads/threads.h"
-#include "src/util/cmd_line.h"
-#include "src/util/keyval_parse.h"
-#include "src/util/show_help.h"
+#include "src/threads/pmix_threads.h"
+#include "src/util/pmix_cmd_line.h"
+#include "src/util/pmix_keyval_parse.h"
+#include "src/util/pmix_show_help.h"
 
 typedef struct {
     pmix_lock_t lock;
@@ -56,6 +56,9 @@ static void notification_fn(size_t evhdlr_registration_id, pmix_status_t status,
                             pmix_info_t results[], size_t nresults,
                             pmix_event_notification_cbfunc_fn_t cbfunc, void *cbdata)
 {
+    PMIX_HIDE_UNUSED_PARAMS(evhdlr_registration_id, status, source, info, ninfo,
+                            results, nresults);
+
     /* this example doesn't do anything with default events */
     if (NULL != cbfunc) {
         cbfunc(PMIX_EVENT_ACTION_COMPLETE, NULL, 0, NULL, NULL, cbdata);
@@ -72,6 +75,7 @@ static void notification_fn(size_t evhdlr_registration_id, pmix_status_t status,
 static void evhandler_reg_callbk(pmix_status_t status, size_t evhandler_ref, void *cbdata)
 {
     mylock_t *lock = (mylock_t *) cbdata;
+    PMIX_HIDE_UNUSED_PARAMS(evhandler_ref);
 
     if (PMIX_SUCCESS != status) {
         fprintf(stderr, "Client %s:%d EVENT HANDLER REGISTRATION FAILED WITH STATUS %d, ref=%lu\n",
@@ -81,37 +85,19 @@ static void evhandler_reg_callbk(pmix_status_t status, size_t evhandler_ref, voi
     PMIX_WAKEUP_THREAD(&lock->lock);
 }
 
-/*****************************************
- * Global Vars for Command line Arguments
- *****************************************/
-typedef struct {
-    bool help;
-    bool verbose;
-    pid_t pid;
-    bool wait;
-    int timeout;
-} pmix_plookup_globals_t;
+static struct option plkoptions[] = {
+    PMIX_OPTION_SHORT_DEFINE(PMIX_CLI_HELP, PMIX_ARG_OPTIONAL, 'h'),
+    PMIX_OPTION_SHORT_DEFINE(PMIX_CLI_VERSION, PMIX_ARG_NONE, 'V'),
+    PMIX_OPTION_SHORT_DEFINE(PMIX_CLI_VERBOSE, PMIX_ARG_NONE, 'v'),
 
-pmix_plookup_globals_t pmix_plookup_globals = {0};
+    PMIX_OPTION_DEFINE(PMIX_CLI_PID, PMIX_ARG_REQD),
+    PMIX_OPTION_DEFINE(PMIX_CLI_TMPDIR, PMIX_ARG_REQD),
+    PMIX_OPTION_DEFINE("wait", PMIX_ARG_REQD),
+    PMIX_OPTION_DEFINE(PMIX_CLI_TIMEOUT, PMIX_ARG_REQD),
 
-pmix_cmd_line_init_t cmd_line_opts[]
-    = {{NULL, 'h', NULL, "help", 0, &pmix_plookup_globals.help, PMIX_CMD_LINE_TYPE_BOOL,
-        "This help message"},
-
-       {NULL, 'v', NULL, "verbose", 0, &pmix_plookup_globals.verbose, PMIX_CMD_LINE_TYPE_BOOL,
-        "Be Verbose"},
-
-       {NULL, 'p', NULL, "pid", 1, &pmix_plookup_globals.pid, PMIX_CMD_LINE_TYPE_INT,
-        "Specify launcher pid"},
-
-       {NULL, 'w', NULL, "wait", 0, &pmix_plookup_globals.wait, PMIX_CMD_LINE_TYPE_BOOL,
-        "Wait for data to be available"},
-
-       {NULL, 't', NULL, "timeout", 0, &pmix_plookup_globals.timeout, PMIX_CMD_LINE_TYPE_INT,
-        "Max number of seconds to wait for data to become available"},
-
-       /* End of list */
-       {NULL, '\0', NULL, NULL, 0, NULL, PMIX_CMD_LINE_TYPE_NULL, NULL}};
+    PMIX_OPTION_END
+};
+static char *plkshorts = "h::vV";
 
 int main(int argc, char **argv)
 {
@@ -119,15 +105,21 @@ int main(int argc, char **argv)
     pmix_info_t *info = NULL;
     size_t ninfo = 0, n;
     mylock_t mylock;
-    pmix_cmd_line_t cmd_line;
     pmix_pdata_t *pdata = NULL;
     size_t ndata;
-    int count;
+    int count, timeout;
     char **keys = NULL;
+    pmix_cli_result_t results;
+    pmix_cli_item_t *opt;
+    PMIX_HIDE_UNUSED_PARAMS(argc);
+
 
     /* protect against problems if someone passes us thru a pipe
      * and then abnormally terminates the pipe early */
     signal(SIGPIPE, SIG_IGN);
+
+    /* init globals */
+    pmix_tool_basename = "plookup";
 
     /* initialize the output system */
     if (!pmix_output_init()) {
@@ -135,9 +127,9 @@ int main(int argc, char **argv)
     }
 
     /* initialize install dirs code */
-    if (PMIX_SUCCESS
-        != (rc = pmix_mca_base_framework_open(&pmix_pinstalldirs_base_framework,
-                                              PMIX_MCA_BASE_OPEN_DEFAULT))) {
+    rc = pmix_mca_base_framework_open(&pmix_pinstalldirs_base_framework,
+                                      PMIX_MCA_BASE_OPEN_DEFAULT);
+    if (PMIX_SUCCESS != rc) {
         fprintf(stderr,
                 "pmix_pinstalldirs_base_open() failed -- process will likely abort (%s:%d, "
                 "returned %d instead of PMIX_SUCCESS)\n",
@@ -153,7 +145,7 @@ int main(int argc, char **argv)
     }
 
     /* initialize the help system */
-    pmix_show_help_init();
+    pmix_show_help_init(NULL);
 
     /* keyval lex-based parser */
     if (PMIX_SUCCESS != (rc = pmix_util_keyval_parse_init())) {
@@ -174,41 +166,29 @@ int main(int argc, char **argv)
     }
 
     /* Parse the command line options */
-    pmix_cmd_line_create(&cmd_line, cmd_line_opts);
-
-    pmix_mca_base_open();
-    pmix_mca_base_cmd_line_setup(&cmd_line);
-    rc = pmix_cmd_line_parse(&cmd_line, false, false, argc, argv);
+    PMIX_CONSTRUCT(&results, pmix_cli_result_t);
+    rc = pmix_cmd_line_parse(argv, plkshorts, plkoptions,
+                             NULL, &results, "help-plookup.txt");
 
     if (PMIX_SUCCESS != rc) {
-        if (PMIX_ERR_SILENT != rc) {
+        if (PMIX_ERR_SILENT != rc && PMIX_OPERATION_SUCCEEDED != rc) {
             fprintf(stderr, "%s: command line error (%s)\n", argv[0], PMIx_Error_string(rc));
         }
-        return rc;
-    }
-
-    if (pmix_plookup_globals.help) {
-        char *str, *args = NULL;
-        args = pmix_cmd_line_get_usage_msg(&cmd_line);
-        str = pmix_show_help_string("help-plookup.txt", "usage", true, args);
-        if (NULL != str) {
-            printf("%s", str);
-            free(str);
+        if (PMIX_OPERATION_SUCCEEDED == rc) {
+            rc = PMIX_SUCCESS;
         }
-        free(args);
-        /* If we show the help message, that should be all we do */
-        exit(0);
+        exit(rc);
     }
 
-    if (pmix_plookup_globals.wait) {
+    if (pmix_cmd_line_is_taken(&results, "wait")) {
         ++ninfo;
-        if (0 < pmix_plookup_globals.timeout) {
+        if (pmix_cmd_line_is_taken(&results, PMIX_CLI_TIMEOUT)) {
             ++ninfo;
         }
     }
 
     /* determine how many keys were given */
-    pmix_cmd_line_get_tail(&cmd_line, &count, &keys);
+    count = pmix_argv_count(results.tail);
     if (0 == count) {
         /* must give us at least one key */
         fprintf(stderr, "%s: Must provide at least one key to lookup\n", argv[0]);
@@ -246,7 +226,9 @@ int main(int argc, char **argv)
         PMIX_INFO_CREATE(info, ninfo);
         PMIX_INFO_LOAD(&info[0], PMIX_WAIT, NULL, PMIX_BOOL);
         if (1 < ninfo) {
-            PMIX_INFO_LOAD(&info[1], PMIX_TIMEOUT, &pmix_plookup_globals.timeout, PMIX_INT);
+            opt = pmix_cmd_line_get_param(&results, PMIX_CLI_TIMEOUT);
+            timeout = strtoul(opt->values[0], NULL, 10);
+            PMIX_INFO_LOAD(&info[1], PMIX_TIMEOUT, &timeout, PMIX_INT);
         }
     }
 

@@ -10,7 +10,7 @@
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2016-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -22,7 +22,7 @@
 
 #include <string.h>
 
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/mca.h"
 
 /*
@@ -31,7 +31,7 @@
  * the types of the modules are the same.  Sort first by priority,
  * second by module name, third by module version.
  *
- * Note that we acutally want a *reverse* ordering here -- the al_*
+ * Note that we actually want a *reverse* ordering here -- the al_*
  * functions will put "smaller" items at the head, and "larger" items
  * at the tail.  Since we want the highest priority at the head, it
  * may help the gentle reader to consider this an inverse comparison.

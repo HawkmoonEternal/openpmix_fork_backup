@@ -16,7 +16,7 @@
  * Copyright (c) 2013-2017 Intel, Inc. All rights reserved.
  * Copyright (c) 2018      Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -31,8 +31,8 @@
 
 #include "src/mca/preg/preg.h"
 #include "src/server/pmix_server_ops.h"
-#include "src/util/argv.h"
-#include "src/util/output.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_output.h"
 #include "src/util/pmix_environ.h"
 
 #include "server_callbacks.h"
@@ -49,6 +49,8 @@ int main(int argc, char **argv)
     char *regex;
     char **nodes, **procs;
     pmix_status_t rc;
+
+    PMIX_HIDE_UNUSED_PARAMS(argc, argv);
 
     /* smoke test */
     if (PMIX_SUCCESS != 0) {

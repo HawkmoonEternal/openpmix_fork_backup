@@ -10,7 +10,7 @@
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2015-2020 Intel, Inc.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -38,10 +38,10 @@
 #include "src/mca/bfrops/base/base.h"
 #include "src/mca/gds/base/base.h"
 #include "src/server/pmix_server_ops.h"
-#include "src/util/argv.h"
-#include "src/util/error.h"
-#include "src/util/getid.h"
-#include "src/util/strnlen.h"
+#include "src/util/pmix_argv.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_getid.h"
+#include "src/util/pmix_strnlen.h"
 
 #include "src/mca/ptl/base/base.h"
 #include "src/mca/ptl/base/ptl_base_handshake.h"
@@ -70,6 +70,9 @@ void pmix_ptl_base_connection_handler(int sd, short args, void *cbdata)
     /* acquire the object */
     PMIX_ACQUIRE_OBJECT(pnd);
 
+    // must use sd, args to avoid -Werror
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
+
     pmix_output_verbose(8, pmix_ptl_base_framework.framework_output,
                         "ptl:base:connection_handler: new connection: %d", pnd->sd);
 
@@ -91,9 +94,10 @@ void pmix_ptl_base_connection_handler(int sd, short args, void *cbdata)
     if (PMIX_MAX_CRED_SIZE < hdr.nbytes) {
         goto error;
     }
-    if (NULL == (msg = (char *) malloc(hdr.nbytes))) {
+    if (NULL == (msg = (char *) malloc(hdr.nbytes+1))) {
         goto error;
     }
+    memset(msg, 0, hdr.nbytes + 1);  // ensure NULL termination of result
     if (PMIX_SUCCESS != pmix_ptl_base_recv_blocking(pnd->sd, msg, hdr.nbytes)) {
         /* unable to complete the recv */
         pmix_output_verbose(2, pmix_ptl_base_framework.framework_output,
@@ -240,6 +244,7 @@ void pmix_ptl_base_connection_handler(int sd, short args, void *cbdata)
         if (NULL != blob) {
             free(blob);
         }
+        free(msg);
         return;
     }
 
@@ -420,6 +425,9 @@ void pmix_ptl_base_connection_handler(int sd, short args, void *cbdata)
 
     /* check the cached events and update the client */
     _check_cached_events(peer);
+    if (NULL != blob) {
+        free(blob);
+    }
 
     return;
 
@@ -430,6 +438,9 @@ error:
     }
     if (NULL != msg) {
         free(msg);
+    }
+    if (NULL != blob) {
+        free(blob);
     }
     if (NULL != peer) {
         pmix_pointer_array_set_item(&pmix_server_globals.clients, peer->index, NULL);
@@ -456,6 +467,9 @@ static void process_cbfunc(int sd, short args, void *cbdata)
 
     /* acquire the object */
     PMIX_ACQUIRE_OBJECT(cd);
+    // must use sd, args to avoid -Werror
+    PMIX_HIDE_UNUSED_PARAMS(sd, args);
+
     /* shortcuts */
     peer = (pmix_peer_t *) pnd->peer;
     nptr = peer->nptr;

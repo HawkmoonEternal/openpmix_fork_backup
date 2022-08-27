@@ -8,7 +8,7 @@
  * Copyright (c) 2016      Mellanox Technologies, Inc.
  *                         All rights reserved.
  * Copyright (c) 2016      IBM Corporation.  All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -22,12 +22,14 @@
 #include "src/include/pmix_globals.h"
 #include "src/mca/bfrops/bfrops.h"
 #include "src/mca/ptl/ptl.h"
-#include "src/util/error.h"
-#include "src/util/name_fns.h"
+#include "src/util/pmix_error.h"
+#include "src/util/pmix_name_fns.h"
 
 #include "pmix_tool_ops.h"
 
-static void tool_switchyard(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer_t *buf,
+static void tool_switchyard(struct pmix_peer_t *pr,
+                            pmix_ptl_hdr_t *hdr,
+                            pmix_buffer_t *buf,
                             void *cbdata);
 
 /* the following function is used by the PMIx server
@@ -53,8 +55,8 @@ static void tool_switchyard(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_bu
  *
  * bfr - the buffer containing the request
  */
-pmix_status_t pmix_tool_relay_op(pmix_cmd_t cmd, pmix_peer_t *peer, pmix_buffer_t *bfr,
-                                 uint32_t tag)
+pmix_status_t pmix_tool_relay_op(pmix_cmd_t cmd, pmix_peer_t *peer,
+                                 pmix_buffer_t *bfr, uint32_t tag)
 {
     pmix_shift_caddy_t *s;
     pmix_status_t rc;
@@ -107,13 +109,14 @@ pmix_status_t pmix_tool_relay_op(pmix_cmd_t cmd, pmix_peer_t *peer, pmix_buffer_
     return PMIX_SUCCESS;
 }
 
-static void tool_switchyard(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer_t *buf,
-                            void *cbdata)
+static void tool_switchyard(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr,
+                            pmix_buffer_t *buf, void *cbdata)
 {
     pmix_shift_caddy_t *s = (pmix_shift_caddy_t *) cbdata;
     pmix_buffer_t *relay;
     pmix_status_t rc;
     uint32_t tag = (uint32_t) s->ncodes;
+    PMIX_HIDE_UNUSED_PARAMS(pr, hdr);
 
     /* the tag for the original sender was stored in ncodes, and
      * the server would have packed the buffer using my

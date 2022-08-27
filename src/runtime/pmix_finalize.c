@@ -16,7 +16,7 @@
  * Copyright (c) 2016-2019 Research Organization for Information Science
  *                         and Technology (RIST).  All rights reserved.
  * Copyright (c) 2021      Triad National Security, LLC. All rights reserved.
- * Copyright (c) 2021      Nanook Consulting.  All rights reserved.
+ * Copyright (c) 2021-2022 Nanook Consulting.  All rights reserved.
  * $COPYRIGHT$
  *
  * Additional copyrights may follow
@@ -31,24 +31,24 @@
 #include "src/class/pmix_object.h"
 #include "src/client/pmix_client_ops.h"
 #include "src/common/pmix_attributes.h"
-#include "src/mca/base/base.h"
+#include "src/mca/base/pmix_base.h"
 #include "src/mca/base/pmix_mca_base_var.h"
 #include "src/mca/bfrops/base/base.h"
 #include "src/mca/gds/base/base.h"
 #include "src/mca/pcompress/base/base.h"
 #include "src/mca/pif/base/base.h"
 #include "src/mca/pinstalldirs/base/base.h"
-#include "src/mca/ploc/base/base.h"
 #include "src/mca/plog/base/base.h"
 #include "src/mca/pnet/base/base.h"
 #include "src/mca/preg/base/base.h"
 #include "src/mca/psec/base/base.h"
 #include "src/mca/psquash/base/base.h"
 #include "src/mca/ptl/base/base.h"
-#include "src/util/keyval_parse.h"
-#include "src/util/output.h"
-#include "src/util/show_help.h"
-#include PMIX_EVENT_HEADER
+#include "src/threads/pmix_tsd.h"
+#include "src/util/pmix_keyval_parse.h"
+#include "src/util/pmix_output.h"
+#include "src/util/pmix_show_help.h"
+#include <event.h>
 
 #include "src/runtime/pmix_progress_threads.h"
 #include "src/runtime/pmix_rte.h"
@@ -61,20 +61,14 @@ void pmix_rte_finalize(void)
     int i;
     pmix_notify_caddy_t *cd;
     pmix_iof_req_t *req;
+    pmix_regattr_input_t *p;
 
-    if (--pmix_initialized != 0) {
-        if (pmix_initialized < 0) {
-            fprintf(stderr, "PMIx Finalize called too many times\n");
-            return;
-        }
+    if (!pmix_init_called) {
         return;
     }
 
     /* release the attribute support trackers */
     pmix_release_registered_attrs();
-
-    /* close ploc */
-    (void) pmix_mca_base_framework_close(&pmix_ploc_base_framework);
 
     /* close plog */
     (void) pmix_mca_base_framework_close(&pmix_plog_base_framework);
@@ -135,9 +129,8 @@ void pmix_rte_finalize(void)
     }
     PMIX_DESTRUCT(&pmix_globals.notifications);
     for (i = 0; i < pmix_globals.iof_requests.size; i++) {
-        if (NULL
-            != (req = (pmix_iof_req_t *) pmix_pointer_array_get_item(&pmix_globals.iof_requests,
-                                                                     i))) {
+        req = (pmix_iof_req_t *) pmix_pointer_array_get_item(&pmix_globals.iof_requests, i);
+        if (NULL != req) {
             PMIX_RELEASE(req);
         }
     }
@@ -148,7 +141,24 @@ void pmix_rte_finalize(void)
         pmix_globals.hostname = NULL;
     }
     PMIX_LIST_DESTRUCT(&pmix_globals.nspaces);
+    for (i=0; i < pmix_globals.keyindex.size; i++) {
+        p = (pmix_regattr_input_t*)pmix_pointer_array_get_item(&pmix_globals.keyindex, i);
+        if (NULL != p) {
+            if (NULL != p->name) {
+                free(p->name);
+            }
+            if (NULL != p->string) {
+                free(p->string);
+            }
+            if (NULL != p->description) {
+                pmix_argv_free(p->description);
+            }
+            free(p);
+        }
+    }
+    PMIX_DESTRUCT(&pmix_globals.keyindex);
 
     /* now safe to release the event base */
     (void) pmix_progress_thread_stop(NULL);
+    pmix_tsd_keys_destruct();
 }
