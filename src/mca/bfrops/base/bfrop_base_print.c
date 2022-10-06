@@ -747,7 +747,7 @@ static int print_val(char **output, pmix_value_t *src)
             rc = pmix_bfrops_base_print_alloc_directive(&tp, NULL, &src->data.adir, PMIX_ALLOC_DIRECTIVE);
             break;
         case PMIX_PSETOP_DIRECTIVE:
-            rc = pmix_bfrops_base_print_psetop_directive(output, prefx, &src->data.pdir, PMIX_PSETOP_DIRECTIVE);
+            rc = pmix_bfrops_base_print_psetop_directive(&tp, NULL, &src->data.pdir, PMIX_PSETOP_DIRECTIVE);
             break;
         case PMIX_ENVAR:
             rc = pmix_bfrops_base_print_envar(&tp, NULL, &src->data.envar, PMIX_ENVAR);
@@ -1202,6 +1202,7 @@ pmix_status_t pmix_bfrops_base_print_darray(char **output, char *prefix,
     pmix_data_array_t *daptr;
     pmix_regattr_t *rgptr;
     pmix_alloc_directive_t *adptr;
+pmix_alloc_directive_t *pdptr;
     pmix_envar_t *evptr;
     pmix_coord_t *coptr;
     pmix_link_state_t *lkptr;
@@ -1356,7 +1357,8 @@ pmix_status_t pmix_bfrops_base_print_darray(char **output, char *prefix,
                 rc = pmix_bfrops_base_print_alloc_directive(&tp, prefix, &adptr[n], PMIX_ALLOC_DIRECTIVE);
                 break;
             case PMIX_PSETOP_DIRECTIVE:
-                rc = pmix_bfrops_base_print_psetop_directive(&tp, prefx, &src->data.pdir, PMIX_PSETOP_DIRECTIVE);
+		pdptr = (pmix_alloc_directive_t*)src->array;
+                rc = pmix_bfrops_base_print_psetop_directive(&tp, prefix, &pdptr[n], PMIX_PSETOP_DIRECTIVE);
                 break;
             case PMIX_ENVAR:
                 evptr = (pmix_envar_t*)src->array;

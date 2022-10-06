@@ -235,7 +235,7 @@ static pmix_status_t init(void)
     PMIX_REGISTER_TYPE("PMIX_PSETOP_DIRECTIVE", PMIX_PSETOP_DIRECTIVE,
                        pmix20_bfrop_pack_psetop_directive, pmix20_bfrop_unpack_psetop_directive,
                        pmix20_bfrop_std_copy, pmix20_bfrop_print_psetop_directive,
-                       &mca_bfrops_v20_component.types);
+                       &pmix_mca_bfrops_v20_component.types);
 
     /**** DEPRECATED ****/
     PMIX_REGISTER_TYPE("PMIX_INFO_ARRAY", PMIX_INFO_ARRAY, pmix20_bfrop_pack_array,

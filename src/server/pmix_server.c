@@ -1135,7 +1135,7 @@ static void _register_nspace(int sd, short args, void *cbdata)
      *  - if(!is_update) should be if(is_update), but it works
      */
 
-    is_update = (cd->nlocalprocs == INT_MIN || nptr->nlocalprocs != cd->nlocalprocs);
+    //bool is_update = (cd->nlocalprocs == INT_MIN || (nptr->nlocalprocs < INT_MAX && (int)nptr->nlocalprocs != cd->nlocalprocs));
 
     if(cd->nlocalprocs != INT_MIN){
         nptr->nlocalprocs = cd->nlocalprocs;
@@ -1143,14 +1143,14 @@ static void _register_nspace(int sd, short args, void *cbdata)
         cd->nlocalprocs=nptr->nlocalprocs;
     }
 
-    if(!is_update){
-        //printf("updating job data\n");
-        PMIX_GDS_CACHE_JOB_INFO(rc, pmix_globals.mypeer, nptr, cd->info, cd->ninfo);
-        if (PMIX_SUCCESS != rc) {
-            printf("Error updating job data\n");
-        }
-        goto release;
-    }
+    //if(!is_update){
+    //printf("updating job data: %ld procs\n", nptr->nlocalprocs);
+    //PMIX_GDS_CACHE_JOB_INFO(rc, pmix_globals.mypeer, nptr, cd->info, cd->ninfo);
+    //if (PMIX_SUCCESS != rc) {
+    //    printf("Error updating job data\n");
+    //}
+    //    goto release;
+    //}
 
     /* see if we already have everyone */
     if (nptr->nlocalprocs == pmix_list_get_size(&nptr->ranks)) {
@@ -1166,7 +1166,7 @@ static void _register_nspace(int sd, short args, void *cbdata)
         }
     }
 
-    /* register nspace for each activate components */
+    /* register nspace for each activis_uate components */
     PMIX_GDS_ADD_NSPACE(rc, nptr->nspace, cd->nlocalprocs, cd->info, cd->ninfo);
     if (PMIX_SUCCESS != rc) {
         goto release;
@@ -3885,14 +3885,13 @@ complete:
     }
 }
 
-MIX_EXPORT void psetop_cbfunc(pmix_status_t status, pmix_psetop_directive_t directive, pmix_info_t *info, size_t ninfo, void *cbdata,
+PMIX_EXPORT void psetop_cbfunc(pmix_status_t status, pmix_psetop_directive_t directive, pmix_info_t *info, size_t ninfo, void *cbdata,
                          pmix_release_cbfunc_t release_fn, void *release_cbdata)
 {
 
     pmix_data_array_t *procs_darray = NULL;
-    pmix_proc_t *pset_procs;
     char *pset_name = NULL;
-    size_t pset_size, ninfo_down = 0, n, sz;
+    size_t pset_size, n, sz;
     pmix_info_t *reply_info;
     pmix_status_t rc;
     pmix_server_caddy_t *cd;

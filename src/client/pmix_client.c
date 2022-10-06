@@ -299,7 +299,6 @@ static void job_data(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer_t 
     int32_t cnt = 1;
     pmix_cb_t *cb = (pmix_cb_t *) cbdata;
 
-
     PMIX_HIDE_UNUSED_PARAMS(pr, hdr);
 
     /* a zero-byte buffer indicates that this recv is being
@@ -1080,7 +1079,6 @@ PMIX_EXPORT pmix_status_t PMIx_Finalize(const pmix_info_t info[], size_t ninfo)
             PMIX_RELEASE_THREAD(&pmix_global_lock);
             return rc;
         }
-
         /* wait for the ack to return */
         PMIX_WAIT_THREAD(&tev.lock);
         PMIX_DESTRUCT_LOCK(&tev.lock);

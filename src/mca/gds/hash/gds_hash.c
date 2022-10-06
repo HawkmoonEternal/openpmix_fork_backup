@@ -187,6 +187,7 @@ static pmix_status_t hash_cache_job_info(struct pmix_namespace_t *ns,
         pmix_output_verbose(12, pmix_gds_base_framework.framework_output,
                             "%s gds:hash:cache_job_info for key %s",
                             PMIX_NAME_PRINT(&pmix_globals.myid), info[n].key);
+
         if (PMIX_CHECK_KEY(&info[n], PMIX_SESSION_ID)) {
             PMIX_VALUE_GET_NUMBER(rc, &info[n].value, sid, uint32_t);
             if (PMIX_SUCCESS != rc) {
@@ -295,6 +296,7 @@ static pmix_status_t hash_cache_job_info(struct pmix_namespace_t *ns,
                                     "[%s:%d] gds:hash:cache_job_info proc data for [%s:%u]: key %s",
                                     pmix_globals.myid.nspace, pmix_globals.myid.rank, trk->ns, rank,
                                     iptr[j].key);
+
                 if (PMIX_CHECK_KEY(&iptr[j], PMIX_QUALIFIED_VALUE)) {
                     rc = pmix_gds_hash_store_qualified(ht, rank, &iptr[j].value);
                     if (PMIX_SUCCESS != rc) {
@@ -670,29 +672,32 @@ static pmix_status_t hash_register_job_info(struct pmix_peer_t *pr, pmix_buffer_
                         "%s gds:hash:register_job_info for peer %s",
                         PMIX_NAME_PRINT(&pmix_globals.myid),
                         PMIX_PEER_PRINT(peer));
-
+    //printf("%s gds:hash:register_job_info for peer %s\n",PMIX_NAME_PRINT(&pmix_globals.myid),PMIX_PEER_PRINT(peer));
+    // FIXME: Need to determine if new procs were added as we need to register proc info of dynamic procs 
     /* first see if we already have processed this data
      * for another peer in this nspace so we don't waste
      * time doing it again */
-    if (NULL != ns->jobbkt) {
-        pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
-                            "[%s:%d] gds:hash:register_job_info copying prepacked payload",
-                            pmix_globals.myid.nspace, pmix_globals.myid.rank);
-        /* we have packed this before - can just deliver it */
-        PMIX_BFROPS_COPY_PAYLOAD(rc, peer, reply, ns->jobbkt);
-        if (PMIX_SUCCESS != rc) {
-            PMIX_ERROR_LOG(rc);
-        }
-        /* now see if we have delivered it to all our local
-         * clients for this nspace */
-        if (!PMIX_PEER_IS_LAUNCHER(pmix_globals.mypeer) && ns->ndelivered == ns->nlocalprocs) {
-            /* we have, so let's get rid of the packed
-             * copy of the data */
-            PMIX_RELEASE(ns->jobbkt);
-            ns->jobbkt = NULL;
-        }
-        return rc;
-    }
+    //if (NULL != ns->jobbkt) {
+    //    printf("Rank %d: already have processed this data for another peer in this nspace\n", pr->info->pname.rank);
+//
+    //    pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
+    //                        "[%s:%d] gds:hash:register_job_info copying prepacked payload",
+    //                        pmix_globals.myid.nspace, pmix_globals.myid.rank);
+    //    /* we have packed this before - can just deliver it */
+    //    PMIX_BFROPS_COPY_PAYLOAD(rc, peer, reply, ns->jobbkt);
+    //    if (PMIX_SUCCESS != rc) {
+    //        PMIX_ERROR_LOG(rc);
+    //    }
+    //    /* now see if we have delivered it to all our local
+    //     * clients for this nspace */
+    //    if (!PMIX_PEER_IS_LAUNCHER(pmix_globals.mypeer) && ns->ndelivered == ns->nlocalprocs) {
+    //        /* we have, so let's get rid of the packed
+    //         * copy of the data */
+    //        PMIX_RELEASE(ns->jobbkt);
+    //        ns->jobbkt = NULL;
+    //    }
+    //    return rc;
+    //}
 
     /* setup a tracker for this nspace as we will likely
      * need it again */

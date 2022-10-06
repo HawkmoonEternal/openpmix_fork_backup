@@ -1612,29 +1612,13 @@ pmix_status_t pmix20_bfrop_unpack_alloc_directive(pmix_pointer_array_t *regtypes
     return pmix20_bfrop_unpack_byte(regtypes, buffer, dest, num_vals, PMIX_UINT8);
 }
 
-pmix_status_t pmix20_bfrop_print_psetop_directive(char **output, char *prefix,
-                                                 pmix_psetop_directive_t *src, pmix_data_type_t type)
+pmix_status_t pmix20_bfrop_unpack_psetop_directive(pmix_pointer_array_t *regtypes,
+                                                  pmix_buffer_t *buffer, void *dest,
+                                                  int32_t *num_vals, pmix_data_type_t type)
 {
-    char *prefx;
+    PMIX_HIDE_UNUSED_PARAMS(type);
 
-    /* deal with NULL prefix */
-    if (NULL == prefix) {
-        if (0 > asprintf(&prefx, " ")) {
-            return PMIX_ERR_NOMEM;
-        }
-    } else {
-        prefx = prefix;
-    }
-
-    if (0 > asprintf(output, "%sData type: PMIX_PSETOP_DIRECTIVE\tValue: %s", prefx,
-                     PMIx_Psetop_directive_string(*src))) {
-        return PMIX_ERR_NOMEM;
-    }
-    if (prefx != prefix) {
-        free(prefx);
-    }
-
-    return PMIX_SUCCESS;
+    return pmix20_bfrop_unpack_byte(regtypes, buffer, dest, num_vals, PMIX_UINT8);
 }
 
 

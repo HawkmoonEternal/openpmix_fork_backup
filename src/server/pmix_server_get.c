@@ -248,7 +248,6 @@ pmix_status_t pmix_server_get(pmix_buffer_t *buf, pmix_modex_cbfunc_t cbfunc, vo
                         "%s EXECUTE GET FOR %s:%d WITH KEY %s ON BEHALF OF %s",
                         PMIX_NAME_PRINT(&pmix_globals.myid), nspace, rank,
                         (NULL == key) ? "NULL" : key, PMIX_PNAME_PRINT(&cd->peer->info->pname));
-
     /* This call flows upward from a local client. If we don't
      * know about this nspace, then it cannot refer to the
      * nspace of the requestor - i.e., they aren't asking
@@ -318,6 +317,7 @@ pmix_status_t pmix_server_get(pmix_buffer_t *buf, pmix_modex_cbfunc_t cbfunc, vo
     if (!nptr->all_registered) {
         pmix_output_verbose(2, pmix_server_globals.get_output, "%s:%d NSPACE %s not all registered",
                             pmix_globals.myid.nspace, pmix_globals.myid.rank, nspace);
+
         rc = defer_response(nspace, rank, cd, localonly, cbfunc, cbdata, &tv, &lcd);
         if (PMIX_ERR_NOT_FOUND == rc) {
             /* just means we created a tracker */

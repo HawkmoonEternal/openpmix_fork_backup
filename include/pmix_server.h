@@ -362,7 +362,7 @@ typedef pmix_status_t (*pmix_server_pset_operation_cbfunc_t)(const pmix_proc_t *
 typedef pmix_status_t (*pmix_server_pset_operation_fn_t)(const pmix_proc_t *client,
                                                 pmix_psetop_directive_t directive,
                                                 const pmix_info_t data[], size_t ndata,
-                                                pmix_psetop_cbfunc_t cbfunc, void *cbda
+                                                pmix_psetop_cbfunc_t cbfunc, void *cbdata);
 
 /* Execute a job control action on behalf of a client */
 typedef pmix_status_t (*pmix_server_job_control_fn_t)(const pmix_proc_t *requestor,

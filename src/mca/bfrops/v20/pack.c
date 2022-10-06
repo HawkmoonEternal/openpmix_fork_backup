@@ -1211,6 +1211,8 @@ pmix_status_t pmix20_bfrop_pack_psetop_directive(pmix_pointer_array_t *regtypes,
                                                 pmix_buffer_t *buffer, const void *src,
                                                 int32_t num_vals, pmix_data_type_t type)
 {
+    PMIX_HIDE_UNUSED_PARAMS(type);
+    
     return pmix20_bfrop_pack_byte(regtypes, buffer, src, num_vals, PMIX_UINT8);
 }
 

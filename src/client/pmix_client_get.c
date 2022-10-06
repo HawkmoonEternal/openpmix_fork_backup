@@ -460,7 +460,6 @@ PMIX_EXPORT pmix_status_t PMIx_Get_job_data(){
         PMIX_DESTRUCT(&cb);
         PMIX_RELEASE_THREAD(&pmix_global_lock);
         
-        //printf("returning from get job data\n");
         return PMIX_SUCCESS;
 }
 
@@ -470,6 +469,10 @@ static void job_data(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr, pmix_buffer_t 
     char *nspace;
     int32_t cnt = 1;
     pmix_cb_t *cb = (pmix_cb_t *) cbdata;
+
+    PMIX_HIDE_UNUSED_PARAMS(pr);
+    PMIX_HIDE_UNUSED_PARAMS(hdr);
+
     /* a zero-byte buffer indicates that this recv is being
      * completed due to a lost connection */
     if (PMIX_BUFFER_IS_EMPTY(buf)) {
@@ -609,6 +612,7 @@ static void _getnb_cbfunc(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr,
     PMIX_ACQUIRE_OBJECT(cb);
     PMIX_HIDE_UNUSED_PARAMS(pr, hdr);
 
+
     pmix_output_verbose(2, pmix_client_globals.get_output,
                         "pmix: get_nb callback recvd");
 
@@ -649,7 +653,6 @@ static void _getnb_cbfunc(struct pmix_peer_t *pr, pmix_ptl_hdr_t *hdr,
      * it is the shmem component, it will contain just
      * the memory address info */
     PMIX_GDS_ACCEPT_KVS_RESP(rc, pmix_globals.mypeer, buf);
-
 done:
     /* now search any pending requests (including the one this was in
      * response to) to see if they can be met. Note that this function
@@ -782,7 +785,7 @@ static void get_data(int sd, short args, void *cbdata)
     iptr = cb->info;
     nfo = cb->ninfo;
 
-    pmix_output_verbose(2, pmix_client_globals.get_output,
+    pmix_output_verbose(0, pmix_client_globals.get_output,
                         "pmix:client:get_data value for proc %s key %s",
                         PMIX_NAME_PRINT(&lg->p), (NULL == cb->key) ? "NULL" : cb->key);
 
@@ -1039,12 +1042,12 @@ doget:
     cb->ninfo = nfo;
     PMIX_GDS_FETCH_KV(rc, pmix_client_globals.myserver, cb);
     if (PMIX_SUCCESS == rc) {
-        pmix_output_verbose(5, pmix_client_globals.get_output,
+        pmix_output_verbose(0, pmix_client_globals.get_output,
                             "pmix:client data found in server-provided data");
         cb->status = process_values(cb);
         goto done;
     }
-    pmix_output_verbose(5, pmix_client_globals.get_output,
+    pmix_output_verbose(0, pmix_client_globals.get_output,
                         "pmix:client data NOT found in server-provided data");
 
     /* if we are both using the "hash" component, then the server's peer
@@ -1054,13 +1057,13 @@ doget:
         /* check the data in my hash module */
         PMIX_GDS_FETCH_KV(rc, pmix_globals.mypeer, cb);
         if (PMIX_SUCCESS == rc) {
-            pmix_output_verbose(5, pmix_client_globals.get_output,
+            pmix_output_verbose(0, pmix_client_globals.get_output,
                                 "pmix:client data found in internal hash data");
             cb->status = process_values(cb);
             goto done;
         }
     }
-    pmix_output_verbose(5, pmix_client_globals.get_output,
+    pmix_output_verbose(0, pmix_client_globals.get_output,
                         "pmix:client job-level data NOT found");
 
     /* we may wind up requesting the data using a different rank as an
@@ -1118,7 +1121,7 @@ doget:
      * us to attempt to retrieve it from the server */
     if (lg->optional) {
         /* they don't want us to try and retrieve it */
-        pmix_output_verbose(2, pmix_client_globals.get_output,
+        pmix_output_verbose(0, pmix_client_globals.get_output,
                             "PMIx_Get key=%s for rank = %u, namespace = %s was not found - request was optional",
                             cb->key, cb->pname.rank, cb->pname.nspace);
         cb->status = PMIX_ERR_NOT_FOUND;
@@ -1145,8 +1148,7 @@ doget:
         PMIX_ERROR_LOG(cb->status);
         goto done;
     }
-
-    pmix_output_verbose(2, pmix_client_globals.get_output,
+    pmix_output_verbose(0, pmix_client_globals.get_output,
                         "%s REQUESTING DATA FROM SERVER FOR %s:%s KEY %s",
                         PMIX_NAME_PRINT(&pmix_globals.myid), cb->proc->nspace,
                         PMIX_RANK_PRINT(proc.rank), cb->key);
@@ -1155,6 +1157,7 @@ doget:
     pmix_list_append(&pmix_client_globals.pending_requests, &cb->super);
     /* send to the server */
     PMIX_PTL_SEND_RECV(rc, pmix_client_globals.myserver, msg, _getnb_cbfunc, (void *) cb);
+    
     if (PMIX_SUCCESS != rc) {
         pmix_list_remove_item(&pmix_client_globals.pending_requests, &cb->super);
         cb->status = PMIX_ERROR;

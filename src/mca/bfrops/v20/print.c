@@ -1651,6 +1651,8 @@ pmix_status_t pmix20_bfrop_print_psetop_directive(char **output, char *prefix,
 {
     char *prefx;
 
+    PMIX_HIDE_UNUSED_PARAMS(type);
+
     /* deal with NULL prefix */
     if (NULL == prefix) {
         if (0 > asprintf(&prefx, " ")) {
