@@ -1144,6 +1144,7 @@ static void _register_nspace(int sd, short args, void *cbdata)
     }
 
     //if(!is_update){
+    //
     //printf("updating job data: %ld procs\n", nptr->nlocalprocs);
     //PMIX_GDS_CACHE_JOB_INFO(rc, pmix_globals.mypeer, nptr, cd->info, cd->ninfo);
     //if (PMIX_SUCCESS != rc) {
