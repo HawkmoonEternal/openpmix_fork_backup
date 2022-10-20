@@ -466,7 +466,7 @@
 #define PMIX_CONFIGURE_CLI " \'--prefix=/opt/hpc/install/pmix\' \'-with-hwloc=/opt/hpc/local/hwloc\' \'--with-libevent=/opt/hpc/local/libevent\'"
 
 /* Date when PMIx was built */
-#define PMIX_CONFIGURE_DATE "Sun Aug 28 13:17:38 UTC 2022"
+#define PMIX_CONFIGURE_DATE "Tue Oct 18 13:49:30 UTC 2022"
 
 /* Hostname where PMIx was built */
 #define PMIX_CONFIGURE_HOST "n01"
@@ -707,7 +707,7 @@
 #define PMIX_RELEASE_VERSION 0
 
 /* The OpenPMIx Git Revision */
-#define PMIX_REPO_REV "v1.1.3-3069-gf5d09cc3"
+#define PMIX_REPO_REV "v1.1.3-3072-g39412e3a"
 
 /* Default value for mca_base_component_show_load_errors MCA variable */
 #define PMIX_SHOW_LOAD_ERRORS_DEFAULT 0

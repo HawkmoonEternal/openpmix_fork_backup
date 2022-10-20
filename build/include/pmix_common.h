@@ -247,7 +247,12 @@ typedef uint32_t pmix_rank_t;
 #define PMIX_PSET_MEMBERS                   "pmix.pset.mems"        // (pmix_data_array_t*) An array of pmix_proc_t containing
                                                                     //          the members of the newly defined process set.
 #define PMIX_REINCARNATION                  "pmix.reinc"            // (uint32_t) number of times this process has been instantiated - i.e.,
-                                                                    //            tracks the number of times it has been restarted
+
+/* resource change attributes */
+#define PMIX_RC_TYPE                        "pmix.rc.type"          // (uint32_t) (actually u int 8 ) type of the resource change: PMIX_RC_NONE, PMIX_RC_ADD, PMIX_RC_SUB
+#define PMIX_RC_DELTA                       "pmix.rc.delta"         // (char*) name of the delta PSet related to this resource change
+#define PMIX_RC_ASSOC                       "pmix.rc.assoc"         // (char*) name of the associated PSet related to this resource change
+#define PMIX_PROC_QUALIFIER                 "pmix.qual.proc"        // (pmix_proc_t) a process name to be used as query qualifier 
 
 /* model attributes */
 #define PMIX_PROGRAMMING_MODEL              "pmix.pgm.model"        // (char*) programming model being initialized (e.g., "MPI" or "OpenMP")
