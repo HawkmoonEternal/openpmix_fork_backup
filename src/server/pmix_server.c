@@ -1129,29 +1129,13 @@ static void _register_nspace(int sd, short args, void *cbdata)
         rc = PMIX_SUCCESS;
         goto release;
     }
-    //nptr->nlocalprocs = cd->nlocalprocs;
-
-    /* FIXME: Why is this working?
-     *  - if(!is_update) should be if(is_update), but it works
-     */
-
-    //bool is_update = (cd->nlocalprocs == INT_MIN || (nptr->nlocalprocs < INT_MAX && (int)nptr->nlocalprocs != cd->nlocalprocs));
-
+ 
     if(cd->nlocalprocs != INT_MIN){
         nptr->nlocalprocs = cd->nlocalprocs;
     }else{
         cd->nlocalprocs=nptr->nlocalprocs;
     }
 
-    //if(!is_update){
-    //
-    //printf("updating job data: %ld procs\n", nptr->nlocalprocs);
-    //PMIX_GDS_CACHE_JOB_INFO(rc, pmix_globals.mypeer, nptr, cd->info, cd->ninfo);
-    //if (PMIX_SUCCESS != rc) {
-    //    printf("Error updating job data\n");
-    //}
-    //    goto release;
-    //}
 
     /* see if we already have everyone */
     if (nptr->nlocalprocs == pmix_list_get_size(&nptr->ranks)) {
@@ -1167,11 +1151,12 @@ static void _register_nspace(int sd, short args, void *cbdata)
         }
     }
 
-    /* register nspace for each activis_uate components */
+    /* register nspace for each active components */
     PMIX_GDS_ADD_NSPACE(rc, nptr->nspace, cd->nlocalprocs, cd->info, cd->ninfo);
     if (PMIX_SUCCESS != rc) {
         goto release;
     }
+    
 
     /* store this data in our own GDS module - we will retrieve
      * it later so it can be passed down to the launched procs
@@ -1182,11 +1167,14 @@ static void _register_nspace(int sd, short args, void *cbdata)
         goto release;
     }
 
+
     /* give the programming models a chance to add anything they need */
     rc = pmix_pmdl.register_nspace(nptr);
     if (PMIX_SUCCESS != rc) {
         goto release;
     }
+    
+    
 
     /* check any pending trackers to see if they are
      * waiting for us. There is a slight race condition whereby
@@ -1272,6 +1260,8 @@ PMIX_EXPORT pmix_status_t PMIx_server_register_nspace(const pmix_nspace_t nspace
     pmix_setup_caddy_t *cd;
     pmix_status_t rc;
     pmix_lock_t mylock;
+
+    
 
     PMIX_ACQUIRE_THREAD(&pmix_global_lock);
     if (pmix_globals.init_cntr <= 0) {

@@ -430,6 +430,9 @@ static pmix_server_trkr_t *new_tracker(char *id, pmix_proc_t *procs,
     pmix_nspace_caddy_t *nm;
     pmix_nspace_t first;
 
+    char host[256];
+    gethostname(host, 256);
+
     pmix_output_verbose(5, pmix_server_globals.fence_output,
                         "new_tracker called with %d procs",
                         (int) nprocs);
@@ -443,7 +446,7 @@ static pmix_server_trkr_t *new_tracker(char *id, pmix_proc_t *procs,
     pmix_output_verbose(5, pmix_server_globals.fence_output,
                         "adding new tracker %s with %d procs",
                         (NULL == id) ? "NO-ID" : id, (int) nprocs);
-
+    
     /* this tracker is new - create it */
     trk = PMIX_NEW(pmix_server_trkr_t);
     if (NULL == trk) {
@@ -467,6 +470,7 @@ static pmix_server_trkr_t *new_tracker(char *id, pmix_proc_t *procs,
     trk->type = type;
     trk->local = true;
     trk->nlocal = 0;
+    
 
     all_def = true;
     PMIX_LOAD_NSPACE(first, NULL);
@@ -514,6 +518,7 @@ static pmix_server_trkr_t *new_tracker(char *id, pmix_proc_t *procs,
             trk->local = false;
             /* we don't know any more info about this nspace, so
              * there isn't anything more we can do */
+
             continue;
         }
         /* it is possible we know about this nspace because the host
@@ -563,6 +568,7 @@ static pmix_server_trkr_t *new_tracker(char *id, pmix_proc_t *procs,
             if (nptr->nprocs != nptr->nlocalprocs) {
                 trk->local = false;
             }
+
             continue;
         }
 
@@ -571,6 +577,7 @@ static pmix_server_trkr_t *new_tracker(char *id, pmix_proc_t *procs,
          * for this nspace have been registered via "register_client"
          * so we know the specific ranks on this node */
         if (!nptr->all_registered) {
+            
             /* nope, so no point in going further on this one - we'll
              * process it once all the procs are known */
             all_def = false;
@@ -579,9 +586,11 @@ static pmix_server_trkr_t *new_tracker(char *id, pmix_proc_t *procs,
                                 procs[i].nspace);
             continue;
         }
+        
         /* is this one of my local ranks? */
         found = false;
-        PMIX_LIST_FOREACH (info, &nptr->ranks, pmix_rank_info_t) {
+
+        PMIX_LIST_FOREACH (info, &nptr->ranks, pmix_rank_info_t) {    
             if (procs[i].rank == info->pname.rank) {
                 pmix_output_verbose(5, pmix_server_globals.fence_output,
                                     "adding local proc %s.%d to tracker", info->pname.nspace,
@@ -591,16 +600,18 @@ static pmix_server_trkr_t *new_tracker(char *id, pmix_proc_t *procs,
                 trk->nlocal++;
                 break;
             }
+            
         }
         if (!found) {
             trk->local = false;
-        }
+        }       
     }
 
     if (all_def) {
         trk->def_complete = true;
     }
     pmix_list_append(&pmix_server_globals.collectives, &trk->super);
+
     return trk;
 }
 
@@ -876,6 +887,7 @@ pmix_status_t pmix_server_fence(pmix_server_caddy_t *cd, pmix_buffer_t *buf,
     pmix_group_caddy_t *gcd;
     pmix_group_t *grp;
 
+
     pmix_output_verbose(2, pmix_server_globals.fence_output,
                         "recvd FENCE");
 
@@ -888,6 +900,7 @@ pmix_status_t pmix_server_fence(pmix_server_caddy_t *cd, pmix_buffer_t *buf,
     pmix_output_verbose(2, pmix_server_globals.fence_output,
                         "recvd fence from %s with %d procs",
                         PMIX_PEER_PRINT(cd->peer), (int) nprocs);
+
     /* there must be at least one as the client has to at least provide
      * their own namespace */
     if (nprocs < 1) {
@@ -1018,6 +1031,7 @@ pmix_status_t pmix_server_fence(pmix_server_caddy_t *cd, pmix_buffer_t *buf,
             PMIX_INFO_FREE(info, ninfo);
             goto cleanup;
         }
+
         trk->type = PMIX_FENCENB_CMD;
         trk->modexcbfunc = modexcbfunc;
         /* mark if they want the data back */
@@ -1071,6 +1085,7 @@ pmix_status_t pmix_server_fence(pmix_server_caddy_t *cd, pmix_buffer_t *buf,
      * across all participants has been completed */
     if (trk->def_complete && pmix_list_get_size(&trk->local_cbs) == trk->nlocal) {
         pmix_output_verbose(2, pmix_server_globals.fence_output, "fence LOCALLY complete");
+
         /* if a timeout was set, then we delete it here as we can
          * ONLY check for local completion. Otherwise, passing
          * the tracker object up to the host can result in
