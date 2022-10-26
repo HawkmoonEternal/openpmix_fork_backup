@@ -1062,6 +1062,7 @@ static void opcbfunc(pmix_status_t status, void *cbdata)
     PMIX_WAKEUP_THREAD(lock);
 }
 
+/* FIXME: Note: Using localprocs = INT_MIN as workaround to retain internal tracking of local processes in case of resource subtraction */
 static void _register_nspace(int sd, short args, void *cbdata)
 {
     pmix_setup_caddy_t *cd = (pmix_setup_caddy_t *) cbdata;
