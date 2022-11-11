@@ -1832,6 +1832,15 @@ static void _register_client(int sd, short args, void *cbdata)
         nptr->nspace = strdup(cd->proc.nspace);
         pmix_list_append(&pmix_globals.nspaces, &nptr->super);
     }
+    /* Check if this client is already registered. This should not happen. 
+     * However, we still check for it here for safety */
+    pmix_rank_info_t * rank;
+    PMIX_LIST_FOREACH(rank, &nptr->ranks, pmix_rank_info_t){
+        if(rank->pname.rank == cd->proc.rank){
+            rc = PMIX_SUCCESS;
+            goto cleanup;
+        }
+    }
     /* setup a peer object for this client - since the host server
      * only deals with the original processes and not any clones,
      * we know this function will be called only once per rank */
@@ -3862,7 +3871,7 @@ complete:
     if (PMIX_SUCCESS != rc) {
         PMIX_RELEASE(reply);
     }
-
+    
     // cleanup
     if (NULL != qcd->queries) {
         PMIX_QUERY_FREE(qcd->queries, qcd->nqueries);
