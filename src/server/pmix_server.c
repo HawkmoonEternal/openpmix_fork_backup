@@ -3890,11 +3890,12 @@ PMIX_EXPORT void psetop_cbfunc(pmix_status_t status, pmix_psetop_directive_t dir
                          pmix_release_cbfunc_t release_fn, void *release_cbdata)
 {
 
-    pmix_data_array_t *procs_darray = NULL;
-    char *pset_name = NULL;
-    size_t pset_size, n, sz;
+    pmix_value_t * array_of_darrays = NULL;
+    size_t n, noutput = 0;
     pmix_info_t *reply_info;
+    pmix_info_t *setop_output = NULL, *set_memberships = NULL;
     pmix_status_t rc;
+    pmix_value_t * pset_names = NULL;
     pmix_server_caddy_t *cd;
     pmix_buffer_t *reply;
 
@@ -3904,6 +3905,8 @@ PMIX_EXPORT void psetop_cbfunc(pmix_status_t status, pmix_psetop_directive_t dir
 
     pmix_output_verbose(2, pmix_server_globals.base_output, "pmix:psetop callback with status %d",
                         status);
+
+    
     reply = PMIX_NEW(pmix_buffer_t);
     if (NULL == reply) {
         PMIX_ERROR_LOG(PMIX_ERR_NOMEM);
@@ -3911,67 +3914,97 @@ PMIX_EXPORT void psetop_cbfunc(pmix_status_t status, pmix_psetop_directive_t dir
         return;
     }
 
-    PMIX_BFROPS_PACK(rc, cd->peer, reply, &status, 1, PMIX_STATUS);
-    if (PMIX_SUCCESS != rc) {
-        PMIX_ERROR_LOG(rc);
-        goto complete;
+    /* Pack the status */
+    if(PMIX_SUCCESS != status){
+        PMIX_BFROPS_PACK(rc, cd->peer, reply, &status, 1, PMIX_STATUS);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_ERROR_LOG(rc);
+            return;
+        }
+        goto send;
     }
 
     if(PMIX_PSETOP_NULL == directive){
+        status = PMIX_ERR_SERVER_FAILED_REQUEST;
         PMIX_ERROR_LOG(PMIX_ERR_SERVER_FAILED_REQUEST);
-        goto complete;
+        PMIX_BFROPS_PACK(rc, cd->peer, reply, &status, 1, PMIX_STATUS);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_ERROR_LOG(rc);
+            return;
+        }
+        goto send;
     }
-
-
-
-    for(n=0; n < ninfo; n++){
-        if(PMIX_CHECK_KEY(&info[n], PMIX_PSETOP_PRESULT)){
-            PMIX_VALUE_UNLOAD(rc, &info[n].value, (void**)&pset_name, &sz);
-        }else if(PMIX_CHECK_KEY(&info[n], PMIX_PSETOP_PSET_SIZE)){
-            pset_size = info[n].value.data.size;
-        }else if(PMIX_CHECK_KEY(&info[n], PMIX_QUERY_PSET_MEMBERSHIP)){
-            procs_darray = info[n].value.data.darray;
+    printf("pmix callback ninfo = %zu\n", ninfo);
+    /* The operation was successful, go get the results */
+    for(n = 0; n < ninfo; n++){
+        printf("Checking key %s\n", info[n].key);
+        if (PMIX_CHECK_KEY(&info[n], PMIX_PSET_MEMBERSHIPS)){
+            set_memberships = &info[n];
+            array_of_darrays = (pmix_value_t *) info[n].value.data.darray->array;
+            noutput = info[n].value.data.darray->size;
+        }else if(PMIX_CHECK_KEY(&info[n], PMIX_PSETOP_OUTPUT)){
+            setop_output = &info[n];
+            pset_names = (pmix_value_t *) info[n].value.data.darray->array;
         }
     }
-   
+    
+    if(0 == noutput || NULL == pset_names || NULL == set_memberships || NULL == setop_output){
+        status = PMIX_ERR_SERVER_FAILED_REQUEST;
+        PMIX_ERROR_LOG(PMIX_ERR_SERVER_FAILED_REQUEST);
+        PMIX_BFROPS_PACK(rc, cd->peer, reply, &status, 1, PMIX_STATUS);
+        if (PMIX_SUCCESS != rc) {
+            PMIX_ERROR_LOG(rc);
+            return;
+        }
+        goto send;
+    }
 
+    PMIX_BFROPS_PACK(rc, cd->peer, reply, &status, 1, PMIX_STATUS);
+    if (PMIX_SUCCESS != rc) {
+        PMIX_ERROR_LOG(rc);
+        return;
+    }
+
+    
+    /* Results were provided correctly, go define the psets */
     pmix_setup_caddy_t _cd;
+    for(n = 0; n < noutput; n++){
+        PMIX_CONSTRUCT(&_cd, pmix_setup_caddy_t);
+        _cd.nspace = strdup(pset_names[n].data.string);
+        _cd.procs = (pmix_proc_t *)  array_of_darrays[n].data.darray->array;
+        _cd.nprocs = array_of_darrays[n].data.darray->size;
+        _cd.opcbfunc = opcbfunc;
+        _cd.cbdata = &_cd.lock;
+        psetdef(0,0, &_cd);
+        rc = _cd.lock.status;
+        /* Protect the procs as we need to use them in the reply */
+        _cd.procs = NULL;
+        _cd.nprocs = 0;
+        PMIX_DESTRUCT(&_cd);
+    }
 
-
-    PMIX_CONSTRUCT(&_cd, pmix_setup_caddy_t);
-    _cd.nspace = strdup(pset_name);
-    _cd.procs = (pmix_proc_t *)  procs_darray->array;
-    _cd.nprocs = pset_size;
-    _cd.opcbfunc = opcbfunc;
-    _cd.cbdata = &_cd.lock;
-    psetdef(0,0, &_cd);
-    rc = _cd.lock.status;
-    _cd.procs = NULL;
-    _cd.nprocs = 0;
-    PMIX_DESTRUCT(&_cd);
-complete:
-    // send reply
+    /* pack the reply */
     PMIX_BFROPS_PACK(rc, cd->peer, reply, &ninfo, 1, PMIX_SIZE);
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
-        goto complete;
+        return;
     }
     PMIX_INFO_CREATE(reply_info, 2);
-    PMIX_INFO_LOAD(&reply_info[0], PMIX_PSETOP_PRESULT, pset_name, PMIX_STRING);
-    PMIX_INFO_LOAD(&reply_info[1], PMIX_PSETOP_PSET_SIZE, &pset_size, PMIX_SIZE);
+    PMIX_INFO_XFER(&reply_info[0], setop_output);
+    PMIX_INFO_XFER(&reply_info[1], set_memberships);
 
     PMIX_BFROPS_PACK(rc, cd->peer, reply, reply_info, 2, PMIX_INFO);
     if (PMIX_SUCCESS != rc) {
         PMIX_ERROR_LOG(rc);
-        goto complete;
+        return;
     }
-
+    PMIX_INFO_FREE(reply_info, 2);
+send:
     PMIX_SERVER_QUEUE_REPLY(rc, cd->peer, cd->hdr.tag, reply);
     if (PMIX_SUCCESS != rc) {
         PMIX_RELEASE(reply);
     }
 
-    PMIX_INFO_FREE(reply_info, 2);
     // cleanup
     if (NULL != qcd->queries) {
         PMIX_QUERY_FREE(qcd->queries, qcd->nqueries);

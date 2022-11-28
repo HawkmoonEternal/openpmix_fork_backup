@@ -248,6 +248,12 @@ typedef uint32_t pmix_rank_t;
                                                                     //          attributes associated with the specified PSet.
 #define PMIX_PSET_MEMBERS                   "pmix.pset.mems"        // (pmix_data_array_t*) An array of pmix_proc_t containing
                                                                     //          the members of the newly defined process set.
+#define PMIX_PSET_MEMBERSHIPS               "pmix.pset.memships"    // (pmix_data_array_t*) An array of pmix_value_t of pmix_data_array_t of pmix_proc_t containing
+                                                                    //          the members of the process sets.
+#define PMIX_PSETOP_INPUT                   "pmix.psetop.in"        // (pmix_data_array_t*) An array of pmix_data_array_t of pmix_value_t containing
+                                                                    //          the names of the input process sets.
+#define PMIX_PSETOP_OUTPUT                  "pmix.pset.out"         // (pmix_data_array_t*) An array of pmix_data_array_t of pmix_value_t containing
+                                                                    //          the names of the output process sets.
 #define PMIX_REINCARNATION                  "pmix.reinc"            // (uint32_t) number of times this process has been instantiated - i.e.,
 
 /* resource change attributes */
@@ -1540,16 +1546,19 @@ typedef uint8_t pmix_alloc_directive_t;
                                    // of time.
 #define PMIX_ALLOC_REAQUIRE     4  // reacquire resources that were previously "lent" back to the scheduler
 
+#define PMIX_ALLOC_SETOPS       5  // request resources in the form of set operations
+
 /* define a value boundary beyond which implementers are free
  * to define their own directive values */
 #define PMIX_ALLOC_EXTERNAL     128
 
 /* define a set of directives for pset operation requests */
 typedef uint8_t pmix_psetop_directive_t;
-#define PMIX_PSETOP_NULL           0   // Invalid pset operation
-#define PMIX_PSETOP_UNION           1  // The union of two psets is requested
-#define PMIX_PSETOP_DIFFERENCE      2  // The difference of two psets is requested
-#define PMIX_PSETOP_INTERSECTION    3  // The intersection of two psets is requested
+#define PMIX_PSETOP_NULL            0  // Invalid pset operation
+#define PMIX_PSETOP_UNION           4  // The union of two psets is requested
+#define PMIX_PSETOP_DIFFERENCE      5  // The difference of two psets is requested
+#define PMIX_PSETOP_INTERSECTION    6  // The intersection of two psets is requested
+#define PMIX_PSETOP_MULTI           7  // Multiple operations specified in the info object
 /* define a value boundary beyond which implementers are free
  * to define their own directive values */
 #define PMIX_PSETOP_EXTERNAL     128
@@ -1558,6 +1567,7 @@ typedef uint8_t pmix_res_change_type_t;
 #define PMIX_RES_CHANGE_NULL        0  // No change
 #define PMIX_RES_CHANGE_ADD         1  // Resources are added
 #define PMIX_RES_CHANGE_SUB         2  // Resources are removed
+#define PMIX_RES_CHANGE_REPLACE     3  // Resources are replaced
 /* define a value boundary beyond which implementers are free
  * to define their own values */
 #define PMIX_RES_CHANGE_EXTERNAL     128
