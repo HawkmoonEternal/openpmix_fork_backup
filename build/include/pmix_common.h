@@ -558,6 +558,7 @@ typedef uint32_t pmix_rank_t;
 #define PMIX_TIME_REMAINING                 "pmix.time.remaining"   // (uint32_t) returns number of seconds remaining in allocation
                                                                     //         for the specified nspace (defaults to allocation containing the caller)
                                                                     //         SUPPORTED QUALIFIERS: PMIX_NSPACE of the nspace whose info is being requested
+#define PMIX_QUERY_LAUNCH_PSET              "pmix.qry.plaunch"      // (char *) The Pset the process specified process was launched in           
 #define PMIX_QUERY_NUM_PSETS                "pmix.qry.psetnum"      // (size_t) returns the number of psets defined
                                                                     //          in the specified range (defaults to session)
                                                                     //         SUPPORTED QUALIFIERS: PMIX_RANGE whose info is being requested
