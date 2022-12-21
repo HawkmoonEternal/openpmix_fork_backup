@@ -1073,6 +1073,7 @@ PMIX_EXPORT pmix_status_t PMIx_Finalize(const pmix_info_t info[], size_t ninfo)
         tev.active = true;
         PMIX_POST_OBJECT(&tev);
         pmix_event_add(&tev.ev, &tv);
+
         /* send to the server */
         PMIX_PTL_SEND_RECV(rc, pmix_client_globals.myserver, msg, finwait_cbfunc, (void *) &tev);
         if (PMIX_SUCCESS != rc) {
