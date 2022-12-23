@@ -254,6 +254,7 @@ typedef uint32_t pmix_rank_t;
                                                                     //          the names of the input process sets.
 #define PMIX_PSETOP_OUTPUT                  "pmix.pset.out"         // (pmix_data_array_t*) An array of pmix_data_array_t of pmix_value_t containing
                                                                     //          the names of the output process sets.
+#define PMIX_PSET_SOURCE_OP                 "pmix.pset.sop"         // (pmix_psetop_directive_t) The operation this PSet was created by
 #define PMIX_REINCARNATION                  "pmix.reinc"            // (uint32_t) number of times this process has been instantiated - i.e.,
 
 /* resource change attributes */
