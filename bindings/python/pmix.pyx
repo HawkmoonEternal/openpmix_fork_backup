@@ -1457,6 +1457,13 @@ cdef class PMIxClient:
         pystr = string
         return pystr.decode('ascii')
 
+    def psetop_directive_string(self, pystat:int):
+        cdef char *string
+
+        string = <char*>PMIx_Psetop_directive_string(pystat)
+        pystr = string
+        return pystr.decode('ascii')
+
     def iof_channel_string(self, pystat:int):
         cdef char *string
 

@@ -462,6 +462,15 @@ cdef int pmix_load_darray(pmix_data_array_t *array, mytype, mylist:list):
         for item in mylist:
             aldptr[n] = item
             n += 1
+    elif PMIX_PSETOP_DIRECTIVE == mytype:
+        array[0].array = PyMem_Malloc(mysize * sizeof(pmix_psetop_directive_t))
+        if not array[0].array:
+            return PMIX_ERR_NOMEM
+        n = 0
+        aldptr = <pmix_psetop_directive_t*> array[0].array
+        for item in mylist:
+            aldptr[n] = item
+            n += 1
     elif PMIX_ENVAR == mytype:
         array[0].array = PyMem_Malloc(mysize * sizeof(pmix_envar_t))
         if not array[0].array:
@@ -815,6 +824,18 @@ cdef dict pmix_unload_darray(pmix_data_array_t *array):
             return PMIX_ERR_NOMEM
         n = 0
         aldptr = <pmix_alloc_directive_t*> array[0].array
+        list = []
+        while n < array.size:
+            list.append(aldptr[n])
+            n += 1
+        darray = {'type':array.type, 'array':list}
+        PyMem_Free(array[0].array)
+        return darray
+    elif PMIX_PSETOP_DIRECTIVE == array.type:
+        if not array[0].array:
+            return PMIX_ERR_NOMEM
+        n = 0
+        aldptr = <pmix_psetop_directive_t*> array[0].array
         list = []
         while n < array.size:
             list.append(aldptr[n])
@@ -1193,6 +1214,14 @@ cdef int pmix_load_value(pmix_value_t *value, val:dict):
             print("allocdirective value is out of bounds")
             return PMIX_ERR_BAD_PARAM
         value[0].data.adir = val['value']
+    elif val['val_type'] == PMIX_PSETOP_DIRECTIVE:
+        if not isinstance(val['value'], pmix_int_types):
+            print("psetopdirective value declared but non-integer provided")
+            return PMIX_ERR_TYPE_MISMATCH
+        if val['value'] > 255:
+            print("psetopdirective value is out of bounds")
+            return PMIX_ERR_BAD_PARAM
+        value[0].data.adir = val['value']
     elif val['val_type'] == PMIX_ENVAR:
         enval = val['value']['envar']
         if isinstance(enval, str):
@@ -1311,6 +1340,8 @@ cdef dict pmix_unload_value(const pmix_value_t *value):
             return PMIX_ERR_NOT_SUPPORTED
     elif PMIX_ALLOC_DIRECTIVE == value[0].type:
         return {'value':value[0].data.adir, 'val_type':PMIX_ALLOC_DIRECTIVE}
+    elif PMIX_PSETOP_DIRECTIVE == value[0].type:
+        return {'value':value[0].data.adir, 'val_type':PMIX_PSETOP_DIRECTIVE}
     elif PMIX_ENVAR == value[0].type:
         pyenv = (<bytes>value[0].data.envar.envar).decode('UTF-8')
         pyval = (<bytes>value[0].data.envar.value).decode('UTF-8')

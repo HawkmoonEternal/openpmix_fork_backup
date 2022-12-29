@@ -12,9 +12,9 @@
 
 BEGIN_C_DECLS
 
-PMIX_EXPORT extern const pmix_regattr_input_t pmix_dictionary[539];
+PMIX_EXPORT extern const pmix_regattr_input_t pmix_dictionary[545];
 
-#define PMIX_INDEX_BOUNDARY 538
+#define PMIX_INDEX_BOUNDARY 544
 
 END_C_DECLS
 

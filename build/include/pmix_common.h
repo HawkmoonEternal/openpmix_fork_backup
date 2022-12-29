@@ -248,13 +248,13 @@ typedef uint32_t pmix_rank_t;
                                                                     //          attributes associated with the specified PSet.
 #define PMIX_PSET_MEMBERS                   "pmix.pset.mems"        // (pmix_data_array_t*) An array of pmix_proc_t containing
                                                                     //          the members of the newly defined process set.
-#define PMIX_PSET_MEMBERSHIPS               "pmix.pset.memships"    // (pmix_data_array_t*) An array of pmix_value_t of pmix_data_array_t of pmix_proc_t containing
+#define PMIX_PSET_MEMBERSHIPS               "pmix.pset.memships"    // (pmix_data_array_t*) An array of pmix_data_array_t of pmix_proc_t containing
                                                                     //          the members of the process sets.
+#define PMIX_PSETOP_TYPE                    "pmix.psetop.type"      // (pmix_psetop_directive_t) The type of a Pset operation
 #define PMIX_PSETOP_INPUT                   "pmix.psetop.in"        // (pmix_data_array_t*) An array of pmix_data_array_t of pmix_value_t containing
                                                                     //          the names of the input process sets.
 #define PMIX_PSETOP_OUTPUT                  "pmix.pset.out"         // (pmix_data_array_t*) An array of pmix_data_array_t of pmix_value_t containing
                                                                     //          the names of the output process sets.
-#define PMIX_PSET_SOURCE_OP                 "pmix.pset.sop"         // (pmix_psetop_directive_t) The operation this PSet was created by
 #define PMIX_REINCARNATION                  "pmix.reinc"            // (uint32_t) number of times this process has been instantiated - i.e.,
 
 /* resource change attributes */
@@ -559,7 +559,6 @@ typedef uint32_t pmix_rank_t;
 #define PMIX_TIME_REMAINING                 "pmix.time.remaining"   // (uint32_t) returns number of seconds remaining in allocation
                                                                     //         for the specified nspace (defaults to allocation containing the caller)
                                                                     //         SUPPORTED QUALIFIERS: PMIX_NSPACE of the nspace whose info is being requested
-#define PMIX_QUERY_LAUNCH_PSET              "pmix.qry.plaunch"      // (char *) The Pset the process specified process was launched in           
 #define PMIX_QUERY_NUM_PSETS                "pmix.qry.psetnum"      // (size_t) returns the number of psets defined
                                                                     //          in the specified range (defaults to session)
                                                                     //         SUPPORTED QUALIFIERS: PMIX_RANGE whose info is being requested
@@ -570,6 +569,11 @@ typedef uint32_t pmix_rank_t;
                                                                     //         the specified process set.
 #define PMIX_QUERY_NUM_GROUPS               "pmix.qry.pgrpnum"      // (size_t) Return the number of process groups defined in the specified range
                                                                     //         (defaults to session). OPTIONAL QUALIFERS: PMIX_RANGE.
+#define PMIX_QUERY_LAUNCH_PSET              "pmix.qry.lpset"        // (char*) return the name of the PSet the specified process was launched in
+#define PMIX_QUERY_PSET_SOURCE_OP           "pmix.qry.psetsop"      // (pmix_psetop_directive_t) returns the type of the psetop operation the specified Pset was created by
+#define PMIX_QUERY_PSETOP_TYPE              "pmix_qry.psetop.type"  // (pmix_psetop_directive_t) returns the type of the pset operation
+#define PMIX_QUERY_PSETOP_INPUT             "pmix.qry.psetop.in"    // (pmix_data_array_t*) returns the names of the input psets of the operation
+#define PMIX_QUERY_PSETOP_OUTPUT            "pmix.qry.psetop.out"   // (pmix_data_array_t*) returns the names of the output psets of the operation
 #define PMIX_QUERY_GROUP_NAMES              "pmix.qry.pgrp"         // (pmix_data_array_t*) Return a pmix_data_array_t containing an array of string
                                                                     //         names of the process groups defined in the specified range (defaults
                                                                     //         to session). OPTIONAL QUALIFERS: PMIX_RANGE
@@ -1557,6 +1561,9 @@ typedef uint8_t pmix_alloc_directive_t;
 /* define a set of directives for pset operation requests */
 typedef uint8_t pmix_psetop_directive_t;
 #define PMIX_PSETOP_NULL            0  // Invalid pset operation
+#define PMIX_PSETOP_ADD             1  // Resources are added
+#define PMIX_PSETOP_SUB             2  // Resources are removed
+#define PMIX_PSETOP_REPLACE         3  // Resources are replaced
 #define PMIX_PSETOP_UNION           4  // The union of two psets is requested
 #define PMIX_PSETOP_DIFFERENCE      5  // The difference of two psets is requested
 #define PMIX_PSETOP_INTERSECTION    6  // The intersection of two psets is requested
@@ -1564,16 +1571,6 @@ typedef uint8_t pmix_psetop_directive_t;
 /* define a value boundary beyond which implementers are free
  * to define their own directive values */
 #define PMIX_PSETOP_EXTERNAL     128
-
-typedef uint8_t pmix_res_change_type_t;
-#define PMIX_RES_CHANGE_NULL        0  // No change
-#define PMIX_RES_CHANGE_ADD         1  // Resources are added
-#define PMIX_RES_CHANGE_SUB         2  // Resources are removed
-#define PMIX_RES_CHANGE_REPLACE     3  // Resources are replaced
-/* define a value boundary beyond which implementers are free
- * to define their own values */
-#define PMIX_RES_CHANGE_EXTERNAL     128
-
 
 
 /* define a set of bit-mask flags for specifying IO

@@ -163,6 +163,8 @@ def harvest_constants(options, path, constants):
                             datatype = "PMIX_UINT16"
                         elif tokens[3] == "(double)":
                             datatype = "PMIX_DOUBLE"
+                        elif tokens[3] == "(pmix_psetop_directive_t)":
+                            datatype = "PMIX_PSETOP_DIRECTIVE"
                         else:
                             print("UNKNOWN TOKEN: {tok}".format(tok=tokens[3]))
                             return 1

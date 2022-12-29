@@ -970,6 +970,7 @@ static pmix_value_cmp_t cmp_darray(pmix_data_array_t *d1,
     int ret;
     pmix_value_cmp_t rc;
     char *st1, *st2;
+    pmix_value_t *val1, *val2;
     pmix_byte_object_t *bo1, *bo2;
     pmix_proc_info_t *pi1, *pi2;
     pmix_coord_t *c1, *c2;
@@ -1335,7 +1336,17 @@ static pmix_value_cmp_t cmp_darray(pmix_data_array_t *d1,
             }
             return PMIX_EQUAL;
             break;
-
+        case PMIX_VALUE:
+            val1 = (pmix_value_t*)d1->array;
+            val2 = (pmix_value_t*)d2->array;
+            for (n=0; n < d1->size; n++) {
+                rc = pmix_bfrops_base_value_cmp(&val1[n], &val2[n]);
+                if (PMIX_EQUAL != rc) {
+                    return rc;
+                }
+            }
+            return PMIX_EQUAL;
+            break;
         default:
             pmix_output(0, "COMPARE-PMIX-VALUE: UNSUPPORTED TYPE %s (%d)",
                         PMIx_Data_type_string(d1->type), (int) d1->type);
