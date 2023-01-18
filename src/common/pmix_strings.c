@@ -204,6 +204,14 @@ PMIX_EXPORT const char *PMIx_Alloc_directive_string(pmix_alloc_directive_t direc
 PMIX_EXPORT const char *PMIx_Psetop_directive_string(pmix_psetop_directive_t directive)
 {
     switch (directive) {
+    case PMIX_PSETOP_NULL:
+        return "NULL";
+    case PMIX_PSETOP_ADD:
+        return "ADD";
+    case PMIX_PSETOP_SUB:
+        return "SUB";
+    case PMIX_PSETOP_REPLACE:
+        return "REPLACE";
     case PMIX_PSETOP_UNION:
         return "UNION";
     case PMIX_PSETOP_DIFFERENCE:

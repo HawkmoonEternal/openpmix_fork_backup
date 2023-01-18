@@ -3934,10 +3934,9 @@ PMIX_EXPORT void psetop_cbfunc(pmix_status_t status, pmix_psetop_directive_t dir
         }
         goto send;
     }
-    printf("pmix callback ninfo = %zu\n", ninfo);
+    
     /* The operation was successful, go get the results */
     for(n = 0; n < ninfo; n++){
-        printf("Checking key %s\n", info[n].key);
         if (PMIX_CHECK_KEY(&info[n], PMIX_PSET_MEMBERSHIPS)){
             set_memberships = &info[n];
             array_of_darrays = (pmix_value_t *) info[n].value.data.darray->array;
