@@ -1560,14 +1560,15 @@ typedef uint8_t pmix_alloc_directive_t;
 
 /* define a set of directives for pset operation requests */
 typedef uint8_t pmix_psetop_directive_t;
-#define PMIX_PSETOP_NULL            0  // Invalid pset operation
-#define PMIX_PSETOP_ADD             1  // Resources are added
-#define PMIX_PSETOP_SUB             2  // Resources are removed
-#define PMIX_PSETOP_REPLACE         3  // Resources are replaced
-#define PMIX_PSETOP_UNION           4  // The union of two psets is requested
-#define PMIX_PSETOP_DIFFERENCE      5  // The difference of two psets is requested
-#define PMIX_PSETOP_INTERSECTION    6  // The intersection of two psets is requested
-#define PMIX_PSETOP_MULTI           7  // Multiple operations specified in the info object
+#define PMIX_PSETOP_NULL            0   // Invalid pset operation
+#define PMIX_PSETOP_ADD             1   // Resources are added
+#define PMIX_PSETOP_SUB             2   // Resources are removed
+#define PMIX_PSETOP_REPLACE         3   // Resources are replaced
+#define PMIX_PSETOP_MALLEABLE       4   // Resources are either added or replaced depending on scheduler decision   
+#define PMIX_PSETOP_UNION           5   // The union of two psets is requested
+#define PMIX_PSETOP_DIFFERENCE      6   // The difference of two psets is requested
+#define PMIX_PSETOP_INTERSECTION    7   // The intersection of two psets is requested
+#define PMIX_PSETOP_MULTI           8   // Multiple operations specified in the info object
 /* define a value boundary beyond which implementers are free
  * to define their own directive values */
 #define PMIX_PSETOP_EXTERNAL     128
