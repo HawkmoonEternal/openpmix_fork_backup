@@ -3360,7 +3360,6 @@ typedef struct pmix_value {
         void *ptr;
         pmix_alloc_directive_t adir;
         pmix_psetop_directive_t pdir;
-        //pmix_res_change_type_t rctype;
         pmix_envar_t envar;
         pmix_coord_t *coord;
         pmix_link_state_t linkstate;

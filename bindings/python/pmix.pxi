@@ -154,6 +154,7 @@ cdef int pmix_load_argv(char **keys, argv:list):
 
 cdef int pmix_load_darray(pmix_data_array_t *array, mytype, mylist:list):
     cdef pmix_info_t *infoptr;
+    cdef pmix_value_t *valptr;
     mysize = len(mylist)
     if PMIX_INFO == mytype:
         array[0].array = PyMem_Malloc(mysize * sizeof(pmix_info_t))
@@ -161,6 +162,12 @@ cdef int pmix_load_darray(pmix_data_array_t *array, mytype, mylist:list):
             return PMIX_ERR_NOMEM
         infoptr = <pmix_info_t*>array[0].array
         rc = pmix_load_info(infoptr, mylist)
+    elif PMIX_VALUE == mytype:
+        array[0].array = PyMem_Malloc(mysize * sizeof(pmix_value_t))
+        if not array[0].array:
+            return PMIX_ERR_NOMEM
+        valptr = <pmix_value_t*>array[0].array
+        rc = pmix_load_value(valptr, mylist)
     elif PMIX_BOOL == mytype:
         array[0].array = PyMem_Malloc(mysize * sizeof(int*))
         n = 0
@@ -495,7 +502,7 @@ cdef int pmix_load_darray(pmix_data_array_t *array, mytype, mylist:list):
             envptr[n].separator = pyseparator
             n += 1
     else:
-        print("UNRECOGNIZED DATA TYPE IN ARRAY")
+        print("UNRECOGNIZED DATA TYPE IN ARRAY "+str(array[0].type))
         return PMIX_ERR_NOT_SUPPORTED
     return PMIX_SUCCESS
 
@@ -861,8 +868,21 @@ cdef dict pmix_unload_darray(pmix_data_array_t *array):
         darray = {'type':array.type, 'array':list}
         PyMem_Free(array[0].array)
         return darray
+    elif PMIX_VALUE == array.type:
+        if not array[0].array:
+            return PMIX_ERR_NOMEM
+        list = []
+        n = 0
+        valptr = <pmix_value_t*>array[0].array
+        while n < array.size:
+            d = pmix_unload_value(&valptr[n])
+            list.append(d)
+            n += 1
+        darray = {'type':array.type, 'array':list}
+        PyMem_Free(array[0].array)
+        return darray
     else:
-        print("UNRECOGNIZED DATA TYPE IN ARRAY")
+        print("UNRECOGNIZED DATA TYPE IN ARRAY ?"+str(array[0].type))
         return PMIX_ERR_NOT_SUPPORTED
     return PMIX_SUCCESS
 
@@ -1252,7 +1272,7 @@ cdef int pmix_load_value(pmix_value_t *value, val:dict):
         pyptr = <char*>ba
         memcpy(value[0].data.bo.bytes, pyptr, value[0].data.bo.size)
     else:
-        print("UNRECOGNIZED VALUE TYPE")
+        print("UNRECOGNIZED VALUE TYPE "+str(val['val_type']))
         return PMIX_ERR_NOT_SUPPORTED
     return PMIX_SUCCESS
 

@@ -1,0 +1,742 @@
+Making install in config
+make[1]: Entering directory '/opt/hpc/build/openpmix/config'
+make[2]: Entering directory '/opt/hpc/build/openpmix/config'
+make[2]: Nothing to be done for 'install-exec-am'.
+make[2]: Nothing to be done for 'install-data-am'.
+make[2]: Leaving directory '/opt/hpc/build/openpmix/config'
+make[1]: Leaving directory '/opt/hpc/build/openpmix/config'
+Making install in contrib
+make[1]: Entering directory '/opt/hpc/build/openpmix/contrib'
+make[2]: Entering directory '/opt/hpc/build/openpmix/contrib'
+make[2]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 pmix-valgrind.supp '/opt/hpc/install/pmix/share/pmix'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/contrib'
+make[1]: Leaving directory '/opt/hpc/build/openpmix/contrib'
+Making install in include
+make[1]: Entering directory '/opt/hpc/build/openpmix/include'
+make[2]: Entering directory '/opt/hpc/build/openpmix/include'
+make[2]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include'
+ /usr/bin/install -c -m 644 pmix.h pmix_server.h pmix_tool.h pmix_deprecated.h '/opt/hpc/install/pmix/include'
+ /usr/bin/install -c -m 644 pmix_common.h pmix_version.h '/opt/hpc/install/pmix/include'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/include'
+make[1]: Leaving directory '/opt/hpc/build/openpmix/include'
+Making install in src
+make[1]: Entering directory '/opt/hpc/build/openpmix/src'
+Making install in include
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/include'
+make  install-am
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/include'
+make[4]: Entering directory '/opt/hpc/build/openpmix/src/include'
+make[4]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/include'
+ /usr/bin/install -c -m 644  pmix_globals.h pmix_atomic.h pmix_hash_string.h pmix_socket_errno.h pmix_stdint.h pmix_prefetch.h pmix_types.h pmix_config.h pmix_config_top.h pmix_config_bottom.h pmix_portable_platform.h pmix_portable_platform_real.h pmix_frameworks.h pmix_dictionary.h '/opt/hpc/install/pmix/include/pmix/src/include/.'
+make[4]: Leaving directory '/opt/hpc/build/openpmix/src/include'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/include'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/include'
+Making install in class
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/class'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/class'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/class'
+ /usr/bin/install -c -m 644 pmix_bitmap.h pmix_object.h pmix_list.h pmix_pointer_array.h pmix_hash_table.h pmix_hotel.h pmix_ring_buffer.h pmix_value_array.h '/opt/hpc/install/pmix/include/pmix/src/class'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/class'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/class'
+Making install in util/keyval
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/util/keyval'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/util/keyval'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Nothing to be done for 'install-data-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/util/keyval'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/util/keyval'
+Making install in util
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/util'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/util'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/util'
+ /usr/bin/install -c -m 644 help-pmix-util.txt help-cli.txt '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 pmix_alfg.h pmix_argv.h pmix_cmd_line.h pmix_error.h pmix_printf.h pmix_output.h pmix_environ.h pmix_fd.h pmix_timings.h pmix_os_dirpath.h pmix_os_path.h pmix_basename.h pmix_keyval_parse.h pmix_show_help.h pmix_path.h pmix_getid.h pmix_strnlen.h pmix_shmem.h pmix_vmem.h pmix_hash.h pmix_name_fns.h pmix_net.h pmix_if.h pmix_parse_options.h pmix_context_fns.h pmix_pty.h pmix_few.h pmix_string_copy.h pmix_getcwd.h '/opt/hpc/install/pmix/include/pmix/src/util'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/util'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/util'
+Making install in mca/base
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/base'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/base'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/base'
+ /usr/bin/install -c -m 644 help-pmix-mca-base.txt help-pmix-mca-var.txt '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 pmix_base.h pmix_mca_base_component_repository.h pmix_mca_base_var.h pmix_mca_base_var_enum.h pmix_mca_base_var_group.h pmix_mca_base_vari.h pmix_mca_base_framework.h pmix_mca_base_alias.h '/opt/hpc/install/pmix/include/pmix/src/mca/base'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/base'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/base'
+Making install in mca/common
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/common'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/common'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Nothing to be done for 'install-data-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/common'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/common'
+Making install in mca/bfrops
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/bfrops'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/bfrops/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/bfrops/base'
+ /usr/bin/install -c -m 644  bfrops.h bfrops_types.h '/opt/hpc/install/pmix/include/pmix/src/mca/bfrops/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops'
+Making install in mca/gds
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/gds'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/gds'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/gds'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/gds/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/gds/base'
+ /usr/bin/install -c -m 644  gds.h '/opt/hpc/install/pmix/include/pmix/src/mca/gds/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/gds'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/gds'
+Making install in mca/pcompress
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pcompress'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pcompress'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pcompress'
+ /usr/bin/install -c -m 644 base/help-pcompress.txt '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pcompress/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pcompress/base'
+ /usr/bin/install -c -m 644  pcompress.h '/opt/hpc/install/pmix/include/pmix/src/mca/pcompress/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pcompress'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pcompress'
+Making install in mca/pdl
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pdl'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pdl'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pdl'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pdl/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pdl/base'
+ /usr/bin/install -c -m 644  pdl.h '/opt/hpc/install/pmix/include/pmix/src/mca/pdl/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pdl'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pdl'
+Making install in mca/pfexec
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pfexec'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pfexec'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pfexec'
+ /usr/bin/install -c -m 644 base/help-pfexec-base.txt '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pfexec/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pfexec/base'
+ /usr/bin/install -c -m 644  pfexec.h '/opt/hpc/install/pmix/include/pmix/src/mca/pfexec/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pfexec'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pfexec'
+Making install in mca/pgpu
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pgpu'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pgpu'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pgpu'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pgpu/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pgpu/base'
+ /usr/bin/install -c -m 644  pgpu.h '/opt/hpc/install/pmix/include/pmix/src/mca/pgpu/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pgpu'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pgpu'
+Making install in mca/pif
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pif'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pif'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pif'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pif/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pif/base'
+ /usr/bin/install -c -m 644  pif.h '/opt/hpc/install/pmix/include/pmix/src/mca/pif/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pif'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pif'
+Making install in mca/pinstalldirs
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pinstalldirs'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pinstalldirs/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pinstalldirs/base'
+ /usr/bin/install -c -m 644  pinstalldirs.h pinstalldirs_types.h '/opt/hpc/install/pmix/include/pmix/src/mca/pinstalldirs/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs'
+Making install in mca/plog
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/plog'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/plog'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/plog'
+ /usr/bin/install -c -m 644 base/help-pmix-plog.txt '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/plog/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/plog/base'
+ /usr/bin/install -c -m 644  plog.h '/opt/hpc/install/pmix/include/pmix/src/mca/plog/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/plog'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/plog'
+Making install in mca/pmdl
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pmdl'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pmdl'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pmdl'
+ /usr/bin/install -c -m 644 base/help-pmdl.txt '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pmdl/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pmdl/base'
+ /usr/bin/install -c -m 644  pmdl.h '/opt/hpc/install/pmix/include/pmix/src/mca/pmdl/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pmdl'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pmdl'
+Making install in mca/pnet
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pnet'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pnet'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pnet'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pnet/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pnet/base'
+ /usr/bin/install -c -m 644  pnet.h '/opt/hpc/install/pmix/include/pmix/src/mca/pnet/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pnet'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pnet'
+Making install in mca/preg
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/preg'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/preg'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/preg'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/preg/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/preg/base'
+ /usr/bin/install -c -m 644  preg.h preg_types.h '/opt/hpc/install/pmix/include/pmix/src/mca/preg/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/preg'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/preg'
+Making install in mca/prm
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/prm'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/prm'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/prm'
+ /usr/bin/install -c -m 644 base/help-prm.txt '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/prm/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/prm/base'
+ /usr/bin/install -c -m 644  prm.h '/opt/hpc/install/pmix/include/pmix/src/mca/prm/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/prm'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/prm'
+Making install in mca/psec
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/psec'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/psec'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/psec'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/psec/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/psec/base'
+ /usr/bin/install -c -m 644  psec.h '/opt/hpc/install/pmix/include/pmix/src/mca/psec/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psec'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psec'
+Making install in mca/psensor
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/psensor'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/psensor'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/psensor'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/psensor/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/psensor/base'
+ /usr/bin/install -c -m 644  psensor.h '/opt/hpc/install/pmix/include/pmix/src/mca/psensor/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psensor'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psensor'
+Making install in mca/psquash
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/psquash'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/psquash'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/psquash'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/psquash/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/psquash/base'
+ /usr/bin/install -c -m 644  psquash.h '/opt/hpc/install/pmix/include/pmix/src/mca/psquash/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psquash'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psquash'
+Making install in mca/pstat
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pstat'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pstat'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pstat'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pstat/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pstat/base'
+ /usr/bin/install -c -m 644  pstat.h '/opt/hpc/install/pmix/include/pmix/src/mca/pstat/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pstat'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pstat'
+Making install in mca/pstrg
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pstrg'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pstrg'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pstrg'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/pstrg/base'
+ /usr/bin/install -c -m 644  base/base.h '/opt/hpc/install/pmix/include/pmix/src/mca/pstrg/base'
+ /usr/bin/install -c -m 644  pstrg.h '/opt/hpc/install/pmix/include/pmix/src/mca/pstrg/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pstrg'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pstrg'
+Making install in mca/ptl
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/ptl'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/ptl'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/ptl'
+ /usr/bin/install -c -m 644 base/help-ptl-base.txt '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca/ptl/base'
+ /usr/bin/install -c -m 644  base/base.h base/ptl_base_handshake.h '/opt/hpc/install/pmix/include/pmix/src/mca/ptl/base'
+ /usr/bin/install -c -m 644  ptl.h ptl_types.h '/opt/hpc/install/pmix/include/pmix/src/mca/ptl/.'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/ptl'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/ptl'
+Making install in mca/bfrops/v12
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v12'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v12'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v12'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v12'
+Making install in mca/bfrops/v20
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v20'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v20'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v20'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v20'
+Making install in mca/bfrops/v21
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v21'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v21'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v21'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v21'
+Making install in mca/bfrops/v3
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v3'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v3'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v3'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v3'
+Making install in mca/bfrops/v4
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v4'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v4'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v4'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v4'
+Making install in mca/bfrops/v41
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v41'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/bfrops/v41'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v41'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/bfrops/v41'
+Making install in mca/gds/hash
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/gds/hash'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/gds/hash'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/gds/hash'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/gds/hash'
+Making install in mca/gds/shmem
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/gds/shmem'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/gds/shmem'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/gds/shmem'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/gds/shmem'
+Making install in mca/pdl/pdlopen
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pdl/pdlopen'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pdl/pdlopen'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Nothing to be done for 'install-data-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pdl/pdlopen'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pdl/pdlopen'
+Making install in mca/pfexec/linux
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pfexec/linux'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pfexec/linux'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 help-pfexec-linux.txt '/opt/hpc/install/pmix/share/pmix'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pfexec/linux'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pfexec/linux'
+Making install in mca/pif/linux_ipv6
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pif/linux_ipv6'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pif/linux_ipv6'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Nothing to be done for 'install-data-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pif/linux_ipv6'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pif/linux_ipv6'
+Making install in mca/pif/posix_ipv4
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pif/posix_ipv4'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pif/posix_ipv4'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Nothing to be done for 'install-data-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pif/posix_ipv4'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pif/posix_ipv4'
+Making install in mca/pinstalldirs/env
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs/env'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs/env'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Nothing to be done for 'install-data-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs/env'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs/env'
+Making install in mca/pinstalldirs/config
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs/config'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs/config'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Nothing to be done for 'install-data-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs/config'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pinstalldirs/config'
+Making install in mca/plog/default
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/plog/default'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/plog/default'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/plog/default'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/plog/default'
+Making install in mca/plog/stdfd
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/plog/stdfd'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/plog/stdfd'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/plog/stdfd'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/plog/stdfd'
+Making install in mca/plog/syslog
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/plog/syslog'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/plog/syslog'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/plog/syslog'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/plog/syslog'
+Making install in mca/pmdl/mpich
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pmdl/mpich'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pmdl/mpich'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pmdl/mpich'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pmdl/mpich'
+Making install in mca/pmdl/ompi
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pmdl/ompi'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pmdl/ompi'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pmdl/ompi'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pmdl/ompi'
+Making install in mca/pmdl/oshmem
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pmdl/oshmem'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pmdl/oshmem'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pmdl/oshmem'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pmdl/oshmem'
+Making install in mca/pnet/opa
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pnet/opa'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pnet/opa'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pnet/opa'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pnet/opa'
+Making install in mca/preg/compress
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/preg/compress'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/preg/compress'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/preg/compress'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/preg/compress'
+Making install in mca/preg/native
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/preg/native'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/preg/native'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/preg/native'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/preg/native'
+Making install in mca/preg/raw
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/preg/raw'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/preg/raw'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/preg/raw'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/preg/raw'
+Making install in mca/psec/native
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/psec/native'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/psec/native'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psec/native'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psec/native'
+Making install in mca/psec/none
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/psec/none'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/psec/none'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psec/none'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psec/none'
+Making install in mca/psensor/file
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/psensor/file'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/psensor/file'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 help-pmix-psensor-file.txt '/opt/hpc/install/pmix/share/pmix'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psensor/file'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psensor/file'
+Making install in mca/psensor/heartbeat
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/psensor/heartbeat'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/psensor/heartbeat'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 help-pmix-psensor-heartbeat.txt '/opt/hpc/install/pmix/share/pmix'
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psensor/heartbeat'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psensor/heartbeat'
+Making install in mca/psquash/flex128
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/psquash/flex128'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/psquash/flex128'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psquash/flex128'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psquash/flex128'
+Making install in mca/psquash/native
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/psquash/native'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/psquash/native'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psquash/native'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/psquash/native'
+Making install in mca/pstat/linux
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pstat/linux'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pstat/linux'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pstat/linux'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pstat/linux'
+Making install in mca/pstrg/vfs
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pstrg/vfs'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pstrg/vfs'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pstrg/vfs'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pstrg/vfs'
+Making install in mca/ptl/client
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/ptl/client'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/ptl/client'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/ptl/client'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/ptl/client'
+Making install in mca/ptl/server
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/ptl/server'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/ptl/server'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/ptl/server'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/ptl/server'
+Making install in mca/ptl/tool
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/ptl/tool'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/ptl/tool'
+make[3]: Nothing to be done for 'install-exec-am'.
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/ptl/tool'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/ptl/tool'
+Making install in .
+make[2]: Entering directory '/opt/hpc/build/openpmix/src'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/lib'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src'
+ /bin/sh ../libtool   --mode=install /usr/bin/install -c   libpmix.la '/opt/hpc/install/pmix/lib'
+ /usr/bin/install -c -m 644 hwloc/help-ploc.txt server/help-pmix-server.txt runtime/help-pmix-runtime.txt '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/mca'
+ /usr/bin/install -c -m 644  mca/mca.h '/opt/hpc/install/pmix/include/pmix/src/mca'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/hwloc'
+ /usr/bin/install -c -m 644  hwloc/pmix_hwloc.h '/opt/hpc/install/pmix/include/pmix/src/hwloc'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/client'
+ /usr/bin/install -c -m 644  client/pmix_client_ops.h '/opt/hpc/install/pmix/include/pmix/src/client'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/runtime'
+ /usr/bin/install -c -m 644  runtime/pmix_rte.h runtime/pmix_progress_threads.h runtime/pmix_init_util.h '/opt/hpc/install/pmix/include/pmix/src/runtime'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/common'
+ /usr/bin/install -c -m 644  common/pmix_iof.h common/pmix_attributes.h '/opt/hpc/install/pmix/include/pmix/src/common'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/threads'
+libtool: install: /usr/bin/install -c .libs/libpmix.so.0.0.0 /opt/hpc/install/pmix/lib/libpmix.so.0.0.0
+ /usr/bin/install -c -m 644  threads/pmix_mutex.h threads/pmix_mutex_unix.h threads/pmix_threads.h threads/pmix_tsd.h '/opt/hpc/install/pmix/include/pmix/src/threads'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/event'
+libtool: install: (cd /opt/hpc/install/pmix/lib && { ln -s -f libpmix.so.0.0.0 libpmix.so.0 || { rm -f libpmix.so.0 && ln -s libpmix.so.0.0.0 libpmix.so.0; }; })
+ /usr/bin/install -c -m 644  event/pmix_event.h '/opt/hpc/install/pmix/include/pmix/src/event'
+libtool: install: (cd /opt/hpc/install/pmix/lib && { ln -s -f libpmix.so.0.0.0 libpmix.so || { rm -f libpmix.so && ln -s libpmix.so.0.0.0 libpmix.so; }; })
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/tool'
+ /usr/bin/install -c -m 644  tool/pmix_tool_ops.h '/opt/hpc/install/pmix/include/pmix/src/tool'
+libtool: install: /usr/bin/install -c .libs/libpmix.lai /opt/hpc/install/pmix/lib/libpmix.la
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/include/pmix/src/server'
+ /usr/bin/install -c -m 644  server/pmix_server_ops.h '/opt/hpc/install/pmix/include/pmix/src/server'
+libtool: finish: PATH="/home/mpiuser/.local/bin:/home/mpiuser/bin:/opt/hpc/install/mrnet/bin:/opt/hpc/install/GSPC/bin:/opt/hpc/install/GPI2/bin:/opt/hpc/install/prrte/bin:/opt/hpc/install/ompi/bin:/opt/hpc/local/munge/sbin:/opt/hpc/local/munge/bin:/opt/hpc/install/slurm/sbin:/opt/hpc/install/slurm/bin:/opt/hpc/install/mpich/bin:/opt/hpc/install/ompi/bin:/opt/hpc/install/ompi/bin:/opt/hpc/install/prrte/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/sbin" ldconfig -n /opt/hpc/install/pmix/lib
+----------------------------------------------------------------------
+Libraries have been installed in:
+   /opt/hpc/install/pmix/lib
+
+If you ever happen to want to link against installed libraries
+in a given directory, LIBDIR, you must either use libtool, and
+specify the full pathname of the library, or use the '-LLIBDIR'
+flag during linking and do at least one of the following:
+   - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+     during execution
+   - add LIBDIR to the 'LD_RUN_PATH' environment variable
+     during linking
+   - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+   - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+
+See any operating system documentation about shared libraries for
+more information, such as the ld(1) and ld.so(8) manual pages.
+----------------------------------------------------------------------
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src'
+Making install in mca/pcompress/zlib
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/pcompress/zlib'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/pcompress/zlib'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/lib/pmix'
+ /bin/sh ../../../../libtool   --mode=install /usr/bin/install -c   pmix_mca_pcompress_zlib.la '/opt/hpc/install/pmix/lib/pmix'
+libtool: install: (cd /opt/hpc/build/openpmix/src/mca/pcompress/zlib; /bin/sh "/opt/hpc/build/openpmix/libtool"  --silent --tag CC --mode=relink gcc -O3 -DNDEBUG -finline-functions -pthread -fvisibility=hidden -Wundef -Wno-long-long -Wsign-compare -Wmissing-prototypes -Wstrict-prototypes -Wcomment -Wshadow -Werror-implicit-function-declaration -fno-strict-aliasing -pedantic -Wall -Wextra -Werror -module -avoid-version -L/opt/hpc/local/libevent/lib -L/opt/hpc/local/hwloc/lib -o pmix_mca_pcompress_zlib.la -rpath /opt/hpc/install/pmix/lib/pmix compress_zlib_component.lo compress_zlib.lo -lz ../../../../src/libpmix.la -lm -lutil -ldl -levent_core -levent_pthreads -lhwloc )
+libtool: install: /usr/bin/install -c .libs/pmix_mca_pcompress_zlib.soT /opt/hpc/install/pmix/lib/pmix/pmix_mca_pcompress_zlib.so
+libtool: install: /usr/bin/install -c .libs/pmix_mca_pcompress_zlib.lai /opt/hpc/install/pmix/lib/pmix/pmix_mca_pcompress_zlib.la
+libtool: finish: PATH="/home/mpiuser/.local/bin:/home/mpiuser/bin:/opt/hpc/install/mrnet/bin:/opt/hpc/install/GSPC/bin:/opt/hpc/install/GPI2/bin:/opt/hpc/install/prrte/bin:/opt/hpc/install/ompi/bin:/opt/hpc/local/munge/sbin:/opt/hpc/local/munge/bin:/opt/hpc/install/slurm/sbin:/opt/hpc/install/slurm/bin:/opt/hpc/install/mpich/bin:/opt/hpc/install/ompi/bin:/opt/hpc/install/ompi/bin:/opt/hpc/install/prrte/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/sbin" ldconfig -n /opt/hpc/install/pmix/lib/pmix
+----------------------------------------------------------------------
+Libraries have been installed in:
+   /opt/hpc/install/pmix/lib/pmix
+
+If you ever happen to want to link against installed libraries
+in a given directory, LIBDIR, you must either use libtool, and
+specify the full pathname of the library, or use the '-LLIBDIR'
+flag during linking and do at least one of the following:
+   - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+     during execution
+   - add LIBDIR to the 'LD_RUN_PATH' environment variable
+     during linking
+   - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+   - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+
+See any operating system documentation about shared libraries for
+more information, such as the ld(1) and ld.so(8) manual pages.
+----------------------------------------------------------------------
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pcompress/zlib'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/pcompress/zlib'
+Making install in mca/prm/default
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/prm/default'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/prm/default'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/lib/pmix'
+ /bin/sh ../../../../libtool   --mode=install /usr/bin/install -c   pmix_mca_prm_default.la '/opt/hpc/install/pmix/lib/pmix'
+libtool: install: (cd /opt/hpc/build/openpmix/src/mca/prm/default; /bin/sh "/opt/hpc/build/openpmix/libtool"  --silent --tag CC --mode=relink gcc -O3 -DNDEBUG -finline-functions -pthread -fvisibility=hidden -Wundef -Wno-long-long -Wsign-compare -Wmissing-prototypes -Wstrict-prototypes -Wcomment -Wshadow -Werror-implicit-function-declaration -fno-strict-aliasing -pedantic -Wall -Wextra -Werror -module -avoid-version -L/opt/hpc/local/libevent/lib -L/opt/hpc/local/hwloc/lib -o pmix_mca_prm_default.la -rpath /opt/hpc/install/pmix/lib/pmix prm_default_component.lo prm_default.lo ../../../../src/libpmix.la -lm -lutil -ldl -levent_core -levent_pthreads -lhwloc )
+libtool: install: /usr/bin/install -c .libs/pmix_mca_prm_default.soT /opt/hpc/install/pmix/lib/pmix/pmix_mca_prm_default.so
+libtool: install: /usr/bin/install -c .libs/pmix_mca_prm_default.lai /opt/hpc/install/pmix/lib/pmix/pmix_mca_prm_default.la
+libtool: finish: PATH="/home/mpiuser/.local/bin:/home/mpiuser/bin:/opt/hpc/install/mrnet/bin:/opt/hpc/install/GSPC/bin:/opt/hpc/install/GPI2/bin:/opt/hpc/install/prrte/bin:/opt/hpc/install/ompi/bin:/opt/hpc/local/munge/sbin:/opt/hpc/local/munge/bin:/opt/hpc/install/slurm/sbin:/opt/hpc/install/slurm/bin:/opt/hpc/install/mpich/bin:/opt/hpc/install/ompi/bin:/opt/hpc/install/ompi/bin:/opt/hpc/install/prrte/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/sbin" ldconfig -n /opt/hpc/install/pmix/lib/pmix
+----------------------------------------------------------------------
+Libraries have been installed in:
+   /opt/hpc/install/pmix/lib/pmix
+
+If you ever happen to want to link against installed libraries
+in a given directory, LIBDIR, you must either use libtool, and
+specify the full pathname of the library, or use the '-LLIBDIR'
+flag during linking and do at least one of the following:
+   - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+     during execution
+   - add LIBDIR to the 'LD_RUN_PATH' environment variable
+     during linking
+   - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+   - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+
+See any operating system documentation about shared libraries for
+more information, such as the ld(1) and ld.so(8) manual pages.
+----------------------------------------------------------------------
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/prm/default'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/prm/default'
+Making install in mca/prm/slurm
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/mca/prm/slurm'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/mca/prm/slurm'
+make[3]: Nothing to be done for 'install-exec-am'.
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/lib/pmix'
+ /bin/sh ../../../../libtool   --mode=install /usr/bin/install -c   pmix_mca_prm_slurm.la '/opt/hpc/install/pmix/lib/pmix'
+libtool: install: (cd /opt/hpc/build/openpmix/src/mca/prm/slurm; /bin/sh "/opt/hpc/build/openpmix/libtool"  --silent --tag CC --mode=relink gcc -O3 -DNDEBUG -finline-functions -pthread -fvisibility=hidden -Wundef -Wno-long-long -Wsign-compare -Wmissing-prototypes -Wstrict-prototypes -Wcomment -Wshadow -Werror-implicit-function-declaration -fno-strict-aliasing -pedantic -Wall -Wextra -Werror -module -avoid-version -L/opt/hpc/local/libevent/lib -L/opt/hpc/local/hwloc/lib -o pmix_mca_prm_slurm.la -rpath /opt/hpc/install/pmix/lib/pmix prm_slurm_component.lo prm_slurm.lo ../../../../src/libpmix.la -lm -lutil -ldl -levent_core -levent_pthreads -lhwloc )
+libtool: install: /usr/bin/install -c .libs/pmix_mca_prm_slurm.soT /opt/hpc/install/pmix/lib/pmix/pmix_mca_prm_slurm.so
+libtool: install: /usr/bin/install -c .libs/pmix_mca_prm_slurm.lai /opt/hpc/install/pmix/lib/pmix/pmix_mca_prm_slurm.la
+libtool: finish: PATH="/home/mpiuser/.local/bin:/home/mpiuser/bin:/opt/hpc/install/mrnet/bin:/opt/hpc/install/GSPC/bin:/opt/hpc/install/GPI2/bin:/opt/hpc/install/prrte/bin:/opt/hpc/install/ompi/bin:/opt/hpc/local/munge/sbin:/opt/hpc/local/munge/bin:/opt/hpc/install/slurm/sbin:/opt/hpc/install/slurm/bin:/opt/hpc/install/mpich/bin:/opt/hpc/install/ompi/bin:/opt/hpc/install/ompi/bin:/opt/hpc/install/prrte/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/sbin" ldconfig -n /opt/hpc/install/pmix/lib/pmix
+----------------------------------------------------------------------
+Libraries have been installed in:
+   /opt/hpc/install/pmix/lib/pmix
+
+If you ever happen to want to link against installed libraries
+in a given directory, LIBDIR, you must either use libtool, and
+specify the full pathname of the library, or use the '-LLIBDIR'
+flag during linking and do at least one of the following:
+   - add LIBDIR to the 'LD_LIBRARY_PATH' environment variable
+     during execution
+   - add LIBDIR to the 'LD_RUN_PATH' environment variable
+     during linking
+   - use the '-Wl,-rpath -Wl,LIBDIR' linker flag
+   - have your system administrator add LIBDIR to '/etc/ld.so.conf'
+
+See any operating system documentation about shared libraries for
+more information, such as the ld(1) and ld.so(8) manual pages.
+----------------------------------------------------------------------
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/mca/prm/slurm'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/mca/prm/slurm'
+Making install in tools/pevent
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/tools/pevent'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/tools/pevent'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/bin'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 help-pevent.txt '/opt/hpc/install/pmix/share/pmix'
+  /bin/sh ../../../libtool   --mode=install /usr/bin/install -c pevent '/opt/hpc/install/pmix/bin'
+libtool: install: /usr/bin/install -c .libs/pevent /opt/hpc/install/pmix/bin/pevent
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pevent'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pevent'
+Making install in tools/pmix_info
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/tools/pmix_info'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/tools/pmix_info'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/bin'
+ /usr/bin/install -c -m 644 help-pmix-info.txt '/opt/hpc/install/pmix/share/pmix'
+  /bin/sh ../../../libtool   --mode=install /usr/bin/install -c pmix_info '/opt/hpc/install/pmix/bin'
+libtool: install: /usr/bin/install -c .libs/pmix_info /opt/hpc/install/pmix/bin/pmix_info
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pmix_info'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pmix_info'
+Making install in tools/plookup
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/tools/plookup'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/tools/plookup'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/bin'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 help-plookup.txt '/opt/hpc/install/pmix/share/pmix'
+  /bin/sh ../../../libtool   --mode=install /usr/bin/install -c plookup '/opt/hpc/install/pmix/bin'
+libtool: install: /usr/bin/install -c .libs/plookup /opt/hpc/install/pmix/bin/plookup
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/tools/plookup'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/tools/plookup'
+Making install in tools/pps
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/tools/pps'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/tools/pps'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/bin'
+ /usr/bin/install -c -m 644 help-pps.txt '/opt/hpc/install/pmix/share/pmix'
+  /bin/sh ../../../libtool   --mode=install /usr/bin/install -c pps '/opt/hpc/install/pmix/bin'
+libtool: install: /usr/bin/install -c .libs/pps /opt/hpc/install/pmix/bin/pps
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pps'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pps'
+Making install in tools/pattrs
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/tools/pattrs'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/tools/pattrs'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/bin'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 help-pattrs.txt '/opt/hpc/install/pmix/share/pmix'
+  /bin/sh ../../../libtool   --mode=install /usr/bin/install -c pattrs '/opt/hpc/install/pmix/bin'
+libtool: install: /usr/bin/install -c .libs/pattrs /opt/hpc/install/pmix/bin/pattrs
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pattrs'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pattrs'
+Making install in tools/pquery
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/tools/pquery'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/tools/pquery'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/bin'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 help-pquery.txt '/opt/hpc/install/pmix/share/pmix'
+  /bin/sh ../../../libtool   --mode=install /usr/bin/install -c pquery '/opt/hpc/install/pmix/bin'
+libtool: install: /usr/bin/install -c .libs/pquery /opt/hpc/install/pmix/bin/pquery
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pquery'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/tools/pquery'
+Making install in tools/wrapper
+make[2]: Entering directory '/opt/hpc/build/openpmix/src/tools/wrapper'
+make[3]: Entering directory '/opt/hpc/build/openpmix/src/tools/wrapper'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/bin'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/mkdir -p '/opt/hpc/install/pmix/share/pmix'
+ /usr/bin/install -c -m 644 pmixcc-wrapper-data.txt '/opt/hpc/install/pmix/share/pmix'
+  /bin/sh ../../../libtool   --mode=install /usr/bin/install -c pmixcc '/opt/hpc/install/pmix/bin'
+ /usr/bin/install -c -m 644 help-pmixcc.txt '/opt/hpc/install/pmix/share/pmix'
+libtool: install: /usr/bin/install -c .libs/pmixcc /opt/hpc/install/pmix/bin/pmixcc
+make[3]: Leaving directory '/opt/hpc/build/openpmix/src/tools/wrapper'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/src/tools/wrapper'
+make[1]: Leaving directory '/opt/hpc/build/openpmix/src'
+Making install in etc
+make[1]: Entering directory '/opt/hpc/build/openpmix/etc'
+make[2]: Entering directory '/opt/hpc/build/openpmix/etc'
+make[2]: Nothing to be done for 'install-exec-am'.
+/usr/bin/mkdir -p /opt/hpc/install/pmix/etc
+******************************* WARNING ************************************
+*** Not installing new pmix-mca-params.conf over existing file in:
+***   /opt/hpc/install/pmix/etc/pmix-mca-params.conf
+******************************* WARNING ************************************
+make[2]: Leaving directory '/opt/hpc/build/openpmix/etc'
+make[1]: Leaving directory '/opt/hpc/build/openpmix/etc'
+Making install in bindings
+make[1]: Entering directory '/opt/hpc/build/openpmix/bindings'
+Making install in python
+make[2]: Entering directory '/opt/hpc/build/openpmix/bindings/python'
+make[3]: Entering directory '/opt/hpc/build/openpmix/bindings/python'
+/usr/bin/python3 ../../bindings/python/construct.py --src="../../include" --include-dir="../../include"
+make[3]: Nothing to be done for 'install-data-am'.
+PMIX_TOP_SRCDIR=/opt/hpc/build/openpmix PMIX_TOP_BUILDDIR=/opt/hpc/build/openpmix \
+	/usr/bin/python3 ../../bindings/python/setup.py build_ext --library-dirs="/opt/hpc/install/pmix/lib" --user
+Compiling /opt/hpc/build/openpmix/bindings/python/pmix.pyx because it changed.
+[1/1] Cythonizing /opt/hpc/build/openpmix/bindings/python/pmix.pyx
+make[3]: Leaving directory '/opt/hpc/build/openpmix/bindings/python'
+make[2]: Leaving directory '/opt/hpc/build/openpmix/bindings/python'
+make[1]: Leaving directory '/opt/hpc/build/openpmix/bindings'

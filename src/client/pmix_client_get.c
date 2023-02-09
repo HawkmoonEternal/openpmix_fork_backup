@@ -332,7 +332,6 @@ PMIX_EXPORT pmix_status_t PMIx_Get(const pmix_proc_t *proc, const char key[],
 
     pmix_output_verbose(2, pmix_client_globals.get_output,
                         "pmix:client get completed with status %s", PMIx_Error_string(rc));
-
     return rc;
 }
 
@@ -732,6 +731,7 @@ static pmix_status_t process_values(pmix_cb_t *cb)
         kv->value = NULL; // protect the value
         return PMIX_SUCCESS;
     }
+
     /* we will return the data as an array of pmix_info_t
      * in the kvs pmix_value_t */
     PMIX_VALUE_CREATE(val, 1);
@@ -1049,7 +1049,6 @@ doget:
     }
     pmix_output_verbose(0, pmix_client_globals.get_output,
                         "pmix:client data NOT found in server-provided data");
-
     /* if we are both using the "hash" component, then the server's peer
      * will simply be pointing at the same hash tables as my peer - no
      * no point in checking there again */

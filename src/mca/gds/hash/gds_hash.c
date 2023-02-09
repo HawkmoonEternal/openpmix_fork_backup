@@ -243,6 +243,7 @@ static pmix_status_t hash_cache_job_info(struct pmix_namespace_t *ns,
             }
             /* mark that we got the map */
             flags |= PMIX_HASH_NODE_MAP;
+            goto store_arbitrary;
         } else if (PMIX_CHECK_KEY(&info[n], PMIX_PROC_MAP)) {
             /* not allowed to get this more than once */
             if (flags & PMIX_HASH_PROC_MAP) {
@@ -429,6 +430,7 @@ static pmix_status_t hash_cache_job_info(struct pmix_namespace_t *ns,
                 pmix_list_append(&apptr->appinfo, &kp2->super);
             }
         } else {
+store_arbitrary:
             if (PMIX_CHECK_KEY(&info[n], PMIX_QUALIFIED_VALUE)) {
                 rc = pmix_gds_hash_store_qualified(ht, PMIX_RANK_WILDCARD, &info[n].value);
                 if (PMIX_SUCCESS != rc) {
@@ -628,6 +630,7 @@ static pmix_status_t register_info(pmix_peer_t *peer,
             PMIX_LIST_DESTRUCT(&values);
             return rc;
         }
+        rc = PMIX_SUCCESS;
         if (0 == pmix_list_get_size(&values)) {
             PMIX_LIST_DESTRUCT(&values);
             continue;
@@ -713,6 +716,7 @@ static pmix_status_t hash_register_job_info(struct pmix_peer_t *pr, pmix_buffer_
     pmix_output_verbose(2, pmix_gds_base_framework.framework_output,
                         "[%s:%d] gds:hash:register_job_info packing new payload",
                         pmix_globals.myid.nspace, pmix_globals.myid.rank);
+
     msg = ns->nspace;
     PMIX_BFROPS_PACK(rc, peer, reply, &msg, 1, PMIX_STRING);
     if (PMIX_SUCCESS != rc) {
