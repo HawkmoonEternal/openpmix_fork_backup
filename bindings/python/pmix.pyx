@@ -726,7 +726,7 @@ cdef class PMIxClient:
         # protect against bad input
         if pyapps is None or len(pyapps) == 0:
             return PMIX_ERR_BAD_PARAM, None
-
+        print(1)
         # allocate and load pmix info structs from python list of dictionaries
         if jobInfo is not None:
             jinfo_ptr = &jinfo
@@ -734,22 +734,25 @@ cdef class PMIxClient:
         else:
             jinfo = NULL
             ninfo = 0
-
+        print(1)
         # convert the list of apps to an array of pmix_app_t
         napps = len(pyapps)
         apps = <pmix_app_t*> PyMem_Malloc(napps * sizeof(pmix_app_t))
         if not apps:
             pmix_free_info(jinfo, ninfo)
             return PMIX_ERR_NOMEM, None
+        print(3)
         rc = pmix_load_apps(apps, pyapps)
         if PMIX_SUCCESS != rc:
             pmix_free_apps(apps, napps)
             if 0 < ninfo:
                 pmix_free_info(jinfo, ninfo)
             return rc, None
+        print(4)
         with nogil:
             rc = PMIx_Spawn(jinfo, ninfo, apps, napps, nspace)
         pmix_free_apps(apps, napps)
+        print(5)
         if 0 < ninfo:
             pmix_free_info(jinfo, ninfo)
         if PMIX_SUCCESS != rc:

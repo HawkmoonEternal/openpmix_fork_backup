@@ -963,6 +963,7 @@ pmix_status_t pmix_bfrops_base_pack_query(pmix_pointer_array_t *regtypes, pmix_b
 pmix_status_t pmix_bfrops_base_pack_val(pmix_pointer_array_t *regtypes, pmix_buffer_t *buffer,
                                         pmix_value_t *p)
 {
+    
     pmix_status_t ret;
 
     switch (p->type) {
