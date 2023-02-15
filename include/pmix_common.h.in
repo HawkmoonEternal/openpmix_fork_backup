@@ -1570,6 +1570,7 @@ typedef uint8_t pmix_psetop_directive_t;
 #define PMIX_PSETOP_DIFFERENCE      8   // The difference of two psets is requested
 #define PMIX_PSETOP_INTERSECTION    9   // The intersection of two psets is requested
 #define PMIX_PSETOP_MULTI           10  // Multiple operations specified in the info object
+#define PMIX_PSETOP_DEFINE          11  // Defines PSet with given processes
 /* define a value boundary beyond which implementers are free
  * to define their own directive values */
 #define PMIX_PSETOP_EXTERNAL     128
