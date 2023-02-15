@@ -168,7 +168,6 @@ PMIX_EXPORT pmix_status_t PMIx_Spawn_nb(const pmix_info_t job_info[], size_t nin
     /* check job info for directives */
     if (NULL != job_info) {
         for (n = 0; n < ninfo; n++) {
-            printf("Key: %s\n", job_info[n].key);
             if (PMIX_CHECK_KEY(&job_info[n], PMIX_SETUP_APP_ENVARS)) {
                 PMIX_CONSTRUCT(&ilist, pmix_list_t);
                 rc = pmix_pmdl.harvest_envars(NULL, job_info, ninfo, &ilist);
@@ -182,7 +181,6 @@ PMIX_EXPORT pmix_status_t PMIx_Spawn_nb(const pmix_info_t job_info[], size_t nin
                         aptr = (pmix_app_t *) &apps[m];
                         pmix_setenv(kv->value->data.envar.envar, kv->value->data.envar.value, true,
                                     &aptr->env);
-                        printf("Have set envar\n");
                     }
                 }
                 jobenvars = true;
@@ -193,6 +191,9 @@ PMIX_EXPORT pmix_status_t PMIx_Spawn_nb(const pmix_info_t job_info[], size_t nin
             }
         }
     }
+
+    /* FIXME: Hardcoded provision of LD_LIBRARY_PATH. Somehow the python bindings do not work */
+    pmix_setenv("LD_LIBRARY_PATH", getenv("LD_LIBRARY_PATH"), true, (char ***) &apps[0].env);
 
     for (n = 0; n < napps; n++) {
         aptr = (pmix_app_t *) &apps[n];
@@ -348,24 +349,6 @@ PMIX_EXPORT pmix_status_t PMIx_Spawn_nb(const pmix_info_t job_info[], size_t nin
         return rc;
     }
     if (0 < napps) {
-        printf("app->cmd: %s\n", apps[0].cmd);
-        pmix_setenv("LD_LIBRARY_PATH", getenv("LD_LIBRARY_PATH"), true,
-                                    (char***) &apps[0].env);
-        printf("app->env: %s\n", apps[0].env[0]);
-        int jk = 0;
-        while(apps[0].env[jk]){
-            printf("%s\n", apps[0].env[jk]);
-            jk++;
-        }
-        printf("app->argv:\n");
-        jk = 0;
-        while(apps[0].argv[jk]){
-            printf("%s\n", apps[0].argv[jk]);
-            jk++;
-        }
-        printf("app->procs: %d\n", (int)apps[0].maxprocs);
-        printf("app->cwd: %s\n", apps[0].cwd);
-        printf("app->ninfo: %d\n", (int)apps[0].ninfo);
 
         PMIX_BFROPS_PACK(rc, pmix_client_globals.myserver, msg, apps, napps, PMIX_APP);
         if (PMIX_SUCCESS != rc) {
